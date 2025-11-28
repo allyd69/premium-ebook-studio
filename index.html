@@ -1,88 +1,244 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Premium Ebook Studio | Cinematic Covers & Professional Templates</title>
-    <meta name="description" content="Create stunning ebooks with AI-generated cinematic covers and premium formatting templates">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
-    
-    <!-- PDF Generation Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- JSZip for EPUB generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <!-- FileSaver for downloads -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Cormorant Garamond', Georgia, serif; background: #0A0A0F; min-height: 100vh; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #0D0D0D; }
-        ::-webkit-scrollbar-thumb { background: #D4AF37; border-radius: 4px; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Premium Ebook Studio | Cinematic Covers & Professional Templates</title>
+  <meta name="description" content="Create stunning ebooks with AI-generated cinematic covers and premium formatting templates">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html,body,#root { height: 100%; }
+    body {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      background: linear-gradient(180deg,#0A0A0F 0%, #151520 50%, #0D0D12 100%);
+      color: #E8E8E8;
+      -webkit-font-smoothing:antialiased;
+    }
+    ::-webkit-scrollbar { width: 8px; height:8px; }
+    ::-webkit-scrollbar-track { background: #0D0D0D; }
+    ::-webkit-scrollbar-thumb { background: #D4AF37; border-radius: 6px; }
+
+    /* small helpers */
+    .hidden { display:none; }
+    .card { background: linear-gradient(145deg, rgba(20,20,28,0.9), rgba(15,15,22,0.95)); border-radius: 10px; border:1px solid rgba(212,175,55,0.15); padding: 16px; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes spin { 0%{ transform: rotate(0);} 100%{ transform: rotate(360deg);} }
+  </style>
 </head>
 <body>
-    <div id="root"></div>
-    
-    <script type="text/babel">
-        const { useState, useCallback, useRef } = React;
+  <div id="root"></div>
 
-        const PremiumEbookStudio = () => {
-            const [activeTab, setActiveTab] = useState('cover');
-            const [coverPrompt, setCoverPrompt] = useState('');
-            const [generatedCover, setGeneratedCover] = useState(null);
-            const [isGenerating, setIsGenerating] = useState(false);
-            const [isExporting, setIsExporting] = useState(false);
-            const [uploadedDoc, setUploadedDoc] = useState(null);
-            const [documentContent, setDocumentContent] = useState('');
-            const [selectedTemplate, setSelectedTemplate] = useState('luxury');
-            const [ebookTitle, setEbookTitle] = useState('');
-            const [ebookAuthor, setEbookAuthor] = useState('');
-            const [chapters, setChapters] = useState([]);
-            const [coverStyle, setCoverStyle] = useState('cinematic');
-            const [generatedImages, setGeneratedImages] = useState([]);
-            const [previewMode, setPreviewMode] = useState('fullbook');
-            const [notification, setNotification] = useState(null);
-            const [uploadedCoverImage, setUploadedCoverImage] = useState(null);
-            const [imageOpacity, setImageOpacity] = useState(100);
-            const [overlayOpacity, setOverlayOpacity] = useState(50);
-            const [imageSource, setImageSource] = useState('none');
-            const [fontSize, setFontSize] = useState('12');
-            const [lineSpacing, setLineSpacing] = useState('1.6');
-            const [pageSize, setPageSize] = useState('6x9');
-            
-            const fileInputRef = useRef(null);
-            const imageInputRef = useRef(null);
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
 
-            const templates = [
-                { id: 'luxury', name: 'Luxury Edition', desc: 'Gold accents, elegant serif', color: '#D4AF37', gradient: 'linear-gradient(135deg, #D4AF37 0%, #F4E5B2 50%, #D4AF37 100%)' },
-                { id: 'modern', name: 'Modern Minimal', desc: 'Clean, contemporary', color: '#1a1a2e', gradient: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' },
-                { id: 'creative', name: 'Creative Bold', desc: 'Vibrant, artistic', color: '#FF6B6B', gradient: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%)' },
-                { id: 'professional', name: 'Professional', desc: 'Corporate style', color: '#2C3E50', gradient: 'linear-gradient(135deg, #2C3E50 0%, #34495E 100%)' },
-                { id: 'romantic', name: 'Romance', desc: 'Soft, elegant', color: '#E8B4BC', gradient: 'linear-gradient(135deg, #E8B4BC 0%, #F5D0D5 100%)' },
-                { id: 'thriller', name: 'Thriller Dark', desc: 'Moody, suspenseful', color: '#0D0D0D', gradient: 'linear-gradient(135deg, #0D0D0D 0%, #2d2d2d 100%)' },
-            ];
+    /*******************************
+     * Helper utilities & styles
+     *******************************/
+    const fileIcons = {
+      txt: "📄",
+      doc: "📝",
+      docx: "📝",
+      rtf: "📘",
+      md: "📜",
+      default: "📑"
+    };
 
-            const coverStyles = [
-                { id: 'cinematic', name: 'Cinematic', icon: '🎬' },
-                { id: 'photorealistic', name: 'Photorealistic', icon: '📷' },
-                { id: 'artistic', name: 'Artistic', icon: '🎨' },
-                { id: 'minimalist', name: 'Minimalist', icon: '◻️' },
-                { id: 'vintage', name: 'Vintage', icon: '📜' },
-                { id: 'fantasy', name: 'Fantasy', icon: '✨' },
-            ];
+    const getFileExtension = (name) => {
+      const parts = name.split('.');
+      return parts.length > 1 ? parts.pop().toLowerCase() : '';
+    };
 
-            const sampleContent = `Chapter 1: The Beginning
+    const getStats = (text = '') => {
+      const words = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+      return { words, characters: text.length, readingTime: Math.max(1, Math.ceil(words / 200)) };
+    };
+
+    const cleanManuscript = (text = '') => {
+      return text
+        .replace(/\r\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .replace(/ {2,}/g, ' ')
+        .replace(/\t+/g, ' ')
+        .trim();
+    };
+
+    const detectChaptersFromText = (text = '') => {
+      const lines = text.split(/\r?\n/);
+      const chapters = [];
+      let current = null;
+      let buffer = [];
+
+      const flush = () => {
+        if (!current) return;
+        const content = buffer.join('\n').trim();
+        const words = content.split(/\s+/).filter(Boolean).length;
+        chapters.push({ id: chapters.length + 1, title: current, wordCount: words, content });
+        buffer = [];
+      };
+
+      for (let i=0;i<lines.length;i++){
+        const line = lines[i].trim();
+        const isHeading = /^(chapter|part)\b\s*[:\-]?\s*\d*/i.test(line) || /^#{1,3}\s+/.test(line);
+        if (isHeading) {
+          if (current) flush();
+          const title = line.replace(/^#{1,3}\s+/, '').replace(/^(chapter|part)\b[:\s]*/i, '').trim() || `Chapter ${chapters.length+1}`;
+          current = title || `Chapter ${chapters.length+1}`;
+        } else {
+          if (!current) current = 'Beginning';
+          buffer.push(line);
+        }
+      }
+      if (current) flush();
+      if (chapters.length === 0) {
+        const words = text.split(/\s+/).filter(Boolean).length;
+        chapters.push({ id: 1, title: 'Full Document', wordCount: words, content: text.trim() });
+      }
+      return chapters;
+    };
+
+    const toMarkdown = (text = '') => {
+      let md = text.replace(/^(Chapter|CHAPTER|Part|PART)\b\s*([0-9IVXLC]*)\s*[:\-]?\s*(.*)$/gmi, (m,p1,p2,p3) => {
+        const heading = (p2 || p3) ? `# ${p1}${p2 ? ' ' + p2 : ''}${p3 ? ': ' + p3 : ''}` : `# ${p1}`;
+        return heading;
+      });
+      md = md.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+      return md;
+    };
+
+    const generateTOCFromChapters = (chapters=[]) => {
+      if (!chapters || chapters.length === 0) return '';
+      return chapters.map((c,i)=> `${i+1}. ${c.title} (${c.wordCount.toLocaleString()} words)`).join('\n');
+    };
+
+    // Small style objects to reuse
+    const primaryBtnStyle = { padding: '8px 12px', borderRadius: 8, background: 'linear-gradient(135deg,#D4AF37 0%,#AA8C2C 100%)', border: 'none', color: '#111', cursor: 'pointer', fontWeight: 700, fontSize: 12 };
+    const secondaryBtnStyle = { padding: '8px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(212,175,55,0.12)', color: '#E8E8E8', cursor: 'pointer', fontSize: 12 };
+    const ctaBtnStyle = { padding: '8px 12px', borderRadius: 8, background: '#8B6F11', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 12 };
+
+    /*******************************
+     * Optional AI call helper (browser)
+     * - Requires API key to be provided in the UI.
+     * - You can replace with your server-side proxy.
+     *******************************/
+    const aiEditRequest = async ({ inputText, mode = 'rewrite', apiKey, model = 'gpt-4o-mini' }) => {
+      if (!apiKey) throw new Error('No API key provided for AI editing.');
+      const systemPrompts = {
+        rewrite: 'You are a professional editor. Rewrite the text to improve clarity, grammar, flow and structure. Preserve meaning.',
+        grammar: 'You are a copy editor. Fix grammar, punctuation, and spelling only; do not change content meaning.',
+        shorten: 'You are an editor. Shorten this content by 30% while preserving essential meaning and tone.',
+        expand: 'You are an editor. Expand and clarify this content, adding helpful detail where appropriate.',
+        suggestTocs: 'Generate a JSON array of chapter titles and short descriptions derived from the manuscript.'
+      };
+      const messages = [
+        { role: 'system', content: systemPrompts[mode] || systemPrompts.rewrite },
+        { role: 'user', content: `Please edit the following manuscript content. Return only the edited text.\n\n${inputText}` }
+      ];
+      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.3,
+          max_tokens: 2500
+        })
+      });
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`AI API error: ${resp.status} ${errText}`);
+      }
+      const data = await resp.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (!content) throw new Error('No content returned from AI');
+      return content.trim();
+    };
+
+    /*******************************
+     * Main component
+     *******************************/
+    function PremiumEbookStudio(){
+      // UI state
+      const [activeTab, setActiveTab] = useState('cover');
+
+      // Cover tab state
+      const [coverPrompt, setCoverPrompt] = useState('');
+      const [generatedCover, setGeneratedCover] = useState(null);
+      const [generatedImages, setGeneratedImages] = useState([]);
+      const [coverStyle, setCoverStyle] = useState('cinematic');
+      const [uploadedCoverImage, setUploadedCoverImage] = useState(null);
+      const [imageSource, setImageSource] = useState('none');
+      const [imageOpacity, setImageOpacity] = useState(100);
+      const [overlayOpacity, setOverlayOpacity] = useState(50);
+      const [isGenerating, setIsGenerating] = useState(false);
+
+      // Manuscript & Upload state
+      const [dragActive, setDragActive] = useState(false);
+      const [uploadedFile, setUploadedFile] = useState(null);
+      const [uploadedDoc, setUploadedDoc] = useState(null);
+      const [manuscriptContent, setManuscriptContent] = useState('');
+      const [documentContent, setDocumentContent] = useState('');
+      const [chapters, setChapters] = useState([]);
+      const [manuscriptPreviewOpen, setManuscriptPreviewOpen] = useState(false);
+      const [aiApiKey, setAiApiKey] = useState('');
+      const [isExporting, setIsExporting] = useState(false);
+      const [notification, setNotification] = useState(null);
+
+      // Book metadata
+      const [ebookTitle, setEbookTitle] = useState('');
+      const [ebookSubtitle, setEbookSubtitle] = useState('');
+      const [ebookTagline, setEbookTagline] = useState('');
+      const [ebookAuthor, setEbookAuthor] = useState('');
+      const [ebookImprint, setEbookImprint] = useState('');
+      const [fontSize, setFontSize] = useState('12');
+      const [lineSpacing, setLineSpacing] = useState('1.6');
+      const [pageSize, setPageSize] = useState('6x9');
+      const [showPageNumbers, setShowPageNumbers] = useState(true);
+      const [showHeader, setShowHeader] = useState(true);
+      const [previewMode, setPreviewMode] = useState('fullbook');
+
+      // Refs
+      const fileInputRef = useRef(null);
+      const imageInputRef = useRef(null);
+
+      // Templates & cover styles
+      const templates = [
+        { id: 'luxury', name: 'Luxury Edition', desc: 'Gold accents, elegant serif', color: '#D4AF37', gradient: 'linear-gradient(135deg, #D4AF37 0%, #F4E5B2 50%, #D4AF37 100%)' },
+        { id: 'modern', name: 'Modern Minimal', desc: 'Clean, contemporary', color: '#1a1a2e', gradient: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' },
+        { id: 'creative', name: 'Creative Bold', desc: 'Vibrant, artistic', color: '#FF6B6B', gradient: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%)' },
+        { id: 'professional', name: 'Professional', desc: 'Corporate style', color: '#2C3E50', gradient: 'linear-gradient(135deg, #2C3E50 0%, #34495E 100%)' },
+        { id: 'romantic', name: 'Romance', desc: 'Soft, elegant', color: '#E8B4BC', gradient: 'linear-gradient(135deg, #E8B4BC 0%, #F5D0D5 100%)' },
+        { id: 'thriller', name: 'Thriller Dark', desc: 'Moody, suspenseful', color: '#0D0D0D', gradient: 'linear-gradient(135deg, #0D0D0D 0%, #2d2d2d 100%)' },
+      ];
+      const coverStyles = [
+        { id: 'cinematic', name: 'Cinematic', icon: '🎬' },
+        { id: 'photorealistic', name: 'Photorealistic', icon: '📷' },
+        { id: 'artistic', name: 'Artistic', icon: '🎨' },
+        { id: 'minimalist', name: 'Minimalist', icon: '◻️' },
+        { id: 'vintage', name: 'Vintage', icon: '📜' },
+        { id: 'fantasy', name: 'Fantasy', icon: '✨' },
+      ];
+
+      const presets = [
+        { id: 'print', name: 'Print', pageSize: '6x9', fontSize: '12', lineSpacing: '1.6' },
+        { id: 'kindle', name: 'Kindle', pageSize: '5.5x8.5', fontSize: '11', lineSpacing: '1.5' },
+        { id: 'pocket', name: 'Pocket', pageSize: '5x8', fontSize: '10', lineSpacing: '1.4' },
+      ];
+
+      const sampleContent = `Chapter 1: The Beginning
 
 The morning light filtered through the ancient windows, casting long shadows across the weathered floorboards. She stood there, breath held, knowing that the next few moments would change everything. The letter trembled in her hands as she read the words that would alter the course of her life forever.
 
@@ -100,742 +256,923 @@ The villagers she met along the way spoke of legends and prophecies, of a time w
 
 By the time she reached the ancient forest, the seasons had changed twice. The trees here were older than memory, their roots reaching deep into the earth where secrets lay buried. This was where her journey would either end or truly begin.`;
 
-            const showNotification = (message, type = 'success') => {
-                setNotification({ message, type });
-                setTimeout(() => setNotification(null), 4000);
-            };
+      // Notifications
+      const showNotification = (message, type='success') => {
+        setNotification({ message, type });
+        setTimeout(()=> setNotification(null), 4200);
+      };
 
-            const getCurrentCoverImage = () => {
-                if (imageSource === 'upload' && uploadedCoverImage) return uploadedCoverImage.url;
-                if (imageSource === 'ai' && generatedCover) return generatedCover.url;
-                return null;
-            };
+      // Local image loader
+      const loadImageAsDataUrl = async (url) => {
+        return new Promise((resolve,reject)=>{
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = function(){
+            const canvas = document.createElement('canvas');
+            canvas.width = this.naturalWidth;
+            canvas.height = this.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.drawImage(this,0,0);
+            resolve(canvas.toDataURL('image/jpeg',0.92));
+          };
+          img.onerror = reject;
+          img.src = url;
+        });
+      };
 
-            const handleFileUpload = useCallback((e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const content = event.target.result;
-                    setUploadedDoc({ name: file.name, content, size: (file.size / 1024).toFixed(2) + ' KB', type: file.type });
-                    setDocumentContent(content);
-                    
-                    const lines = content.split('\n');
-                    const detectedChapters = [];
-                    let currentChapter = null;
-                    let wordCount = 0;
-                    let chapterContent = '';
-                    
-                    lines.forEach((line) => {
-                        const chapterMatch = line.match(/^(Chapter|CHAPTER|Part|PART)\s*(\d+|[IVXLC]+)/i);
-                        if (chapterMatch || line.match(/^#{1,2}\s+/)) {
-                            if (currentChapter) {
-                                currentChapter.wordCount = wordCount;
-                                currentChapter.content = chapterContent.trim();
-                                detectedChapters.push(currentChapter);
-                            }
-                            currentChapter = { id: detectedChapters.length + 1, title: line.replace(/^#+\s*/, '').trim() || `Chapter ${detectedChapters.length + 1}`, wordCount: 0, content: '' };
-                            wordCount = 0;
-                            chapterContent = '';
-                        } else {
-                            wordCount += line.split(/\s+/).filter(w => w.length > 0).length;
-                            chapterContent += line + '\n';
-                        }
-                    });
-                    
-                    if (currentChapter) {
-                        currentChapter.wordCount = wordCount;
-                        currentChapter.content = chapterContent.trim();
-                        detectedChapters.push(currentChapter);
-                    }
-                    
-                    if (detectedChapters.length === 0) {
-                        const totalWords = content.split(/\s+/).filter(w => w.length > 0).length;
-                        detectedChapters.push({ id: 1, title: 'Full Document', wordCount: totalWords, content });
-                    }
-                    
-                    setChapters(detectedChapters);
-                    showNotification(`✓ Uploaded: ${detectedChapters.length} section(s), ${detectedChapters.reduce((a, c) => a + c.wordCount, 0).toLocaleString()} words`);
-                };
-                reader.readAsText(file);
-            }, []);
+      const getCurrentCoverImage = () => {
+        if (imageSource === 'upload' && uploadedCoverImage) return uploadedCoverImage.url;
+        if (imageSource === 'ai' && generatedCover) return generatedCover.url;
+        return null;
+      };
 
-            const handleImageUpload = useCallback((e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                if (!file.type.startsWith('image/')) {
-                    showNotification('Please upload an image file', 'error');
-                    return;
+      // File upload handler - reads file as text (basic)
+      const handleFileUpload = useCallback((e) => {
+        const file = e?.target?.files ? e.target.files[0] : e;
+        if (!file) return;
+        setUploadedFile(file);
+        setUploadedDoc({ name: file.name, size: (file.size/1024).toFixed(2) + ' KB', type: file.type });
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const content = String(ev.target.result || '');
+          const cleaned = content;
+          setDocumentContent(cleaned);
+          setManuscriptContent(cleaned);
+          const detected = detectChaptersFromText(cleaned);
+          setChapters(detected);
+          showNotification(`✓ Uploaded: ${file.name} — ${detected.length} section(s)`);
+        };
+        // Prefer readAsText for document types
+        reader.readAsText(file);
+      }, []);
+
+      // image upload for cover
+      const handleImageUpload = useCallback((e) => {
+        const file = e?.target?.files ? e.target.files[0] : e;
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+          showNotification('Please upload an image file', 'error'); return;
+        }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          setUploadedCoverImage({ url: ev.target.result, name: file.name, type: file.type, size: (file.size / 1024).toFixed(2) + ' KB' });
+          setImageSource('upload');
+          showNotification(`✓ Image uploaded: ${file.name}`);
+        };
+        reader.readAsDataURL(file);
+      }, []);
+
+      // Simple fake AI generator (placeholder) — uses picsum seed for demo
+      const generateCover = async () => {
+        if (!coverPrompt.trim()) { showNotification('Please enter a cover description', 'error'); return; }
+        setIsGenerating(true);
+        try {
+          await new Promise(r=>setTimeout(r,1500));
+          const seed = coverPrompt.split('').reduce((a,c)=>a+ c.charCodeAt(0),0);
+          const url = `https://picsum.photos/seed/${seed}/600/900`;
+          const result = { url, prompt: coverPrompt, style: coverStyle, timestamp: new Date().toISOString() };
+          setGeneratedCover(result);
+          setGeneratedImages(prev=>[...prev, result]);
+          setImageSource('ai');
+          showNotification('✓ AI Cover generated (demo)');
+        } catch (err) {
+          console.error(err);
+          showNotification('Error generating cover', 'error');
+        } finally { setIsGenerating(false); }
+      };
+
+      // Export PDF (using jsPDF) - simplified, adapted from original
+      const exportPDF = async () => {
+        setIsExporting(true);
+        showNotification('📄 Creating PDF...');
+        try {
+          const { jsPDF } = window.jspdf;
+          const pageSizes = { '6x9': [432,648], '5.5x8.5':[396,612], '5x8':[360,576], 'a5':[420,595], 'letter':[612,792] };
+          const [pageWidth, pageHeight] = pageSizes[pageSize] || pageSizes['6x9'];
+          const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: [pageWidth, pageHeight] });
+          const margin = 50;
+          const contentWidth = pageWidth - margin*2;
+          const lineHeight = parseInt(fontSize) * parseFloat(lineSpacing);
+
+          const title = ebookTitle || 'Untitled Book';
+          const subtitle = ebookSubtitle || '';
+          const author = ebookAuthor || 'Unknown Author';
+          const tagline = ebookTagline || '';
+          const imprint = ebookImprint || author;
+          const currentYear = new Date().getFullYear();
+
+          // COVER
+          const coverUrl = getCurrentCoverImage();
+          if (coverUrl) {
+            const coverDataUrl = coverUrl.startsWith('data:') ? coverUrl : await loadImageAsDataUrl(coverUrl);
+            pdf.addImage(coverDataUrl, 'JPEG', 0, 0, pageWidth, pageHeight);
+          } else {
+            pdf.setFillColor(26,26,46);
+            pdf.rect(0,0,pageWidth,pageHeight,'F');
+          }
+
+          pdf.setFillColor(212,175,55);
+          pdf.rect(0,0,pageWidth,8,'F');
+          pdf.setTextColor(255,255,255);
+          pdf.setFontSize(28);
+          pdf.setFont('helvetica','bold');
+          const titleLines = pdf.splitTextToSize(title, contentWidth);
+          pdf.text(titleLines, pageWidth/2, pageHeight*0.4, { align: 'center' });
+          if (subtitle) { pdf.setFontSize(18); pdf.text(subtitle, pageWidth/2, pageHeight*0.45, { align:'center' }); }
+          if (tagline) { pdf.setFontSize(14); pdf.text(tagline, pageWidth/2, pageHeight*0.5, { align: 'center' }); }
+          pdf.setDrawColor(212,175,55);
+          pdf.setLineWidth(1);
+          pdf.line(pageWidth*0.3, pageHeight*0.52, pageWidth*0.7, pageHeight*0.52);
+          pdf.setFontSize(16); pdf.setFont('helvetica','normal'); pdf.text(author, pageWidth/2, pageHeight*0.6, { align: 'center' });
+
+          // Title page
+          pdf.addPage();
+          pdf.setFillColor(250,248,245);
+          pdf.rect(0,0,pageWidth,pageHeight,'F');
+          pdf.setTextColor(42,42,42);
+          pdf.setFontSize(24); pdf.setFont('helvetica','bold'); pdf.text(title, pageWidth/2, pageHeight*0.4, { align: 'center' });
+          if (subtitle) { pdf.setFontSize(18); pdf.text(subtitle, pageWidth/2, pageHeight*0.44, { align: 'center' }); }
+          pdf.setFontSize(14); pdf.setFont('helvetica','normal'); pdf.text('by', pageWidth/2, pageHeight*0.46, { align: 'center' }); pdf.setFontSize(18); pdf.text(author, pageWidth/2, pageHeight*0.52, { align: 'center' });
+
+          // Copyright page
+          pdf.addPage();
+          pdf.setFillColor(250,248,245); pdf.rect(0,0,pageWidth,pageHeight,'F');
+          pdf.setTextColor(136,136,136); pdf.setFontSize(10); pdf.setFont('helvetica','normal');
+          const copyrightText = [
+            `Copyright © ${currentYear} ${imprint}.`,
+            'All rights reserved.',
+            'No part of this book may be reproduced in any form without written permission from the publisher.',
+            '',
+            `Published by ${imprint}`
+          ];
+          let copyY = pageHeight/2;
+          copyrightText.forEach(line=>{ pdf.text(line, pageWidth/2, copyY, { align:'center' }); copyY += 15; });
+
+          // Content pages
+          const content = documentContent || manuscriptContent || sampleContent;
+          const paragraphs = content.split('\n\n').filter(p => p.trim());
+          pdf.addPage();
+          pdf.setFillColor(250,248,245); pdf.rect(0,0,pageWidth,pageHeight,'F');
+          let currentY = margin + 40;
+          let pageNum = 4;
+          pdf.setTextColor(42,42,42); pdf.setFontSize(parseInt(fontSize)); pdf.setFont('helvetica','normal');
+
+          paragraphs.forEach((para, index) => {
+            const isChapter = para.match(/^(Chapter|CHAPTER|Part|PART)\s/i);
+            if (isChapter) {
+              if (currentY > margin + 100) {
+                if (showPageNumbers) {
+                  pdf.setFontSize(10); pdf.setTextColor(136,136,136); pdf.text(String(pageNum - 2), pageWidth/2, pageHeight - 25, { align: 'center' });
                 }
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    setUploadedCoverImage({ url: event.target.result, name: file.name, type: file.type, size: (file.size / 1024).toFixed(2) + ' KB' });
-                    setImageSource('upload');
-                    showNotification(`✓ Image uploaded: ${file.name}`);
-                };
-                reader.readAsDataURL(file);
-            }, []);
-
-            const generateCover = async () => {
-                if (!coverPrompt.trim()) {
-                    showNotification('Please enter a cover description', 'error');
-                    return;
+                if (showHeader && index > 0) {
+                  pdf.setFontSize(10); pdf.setTextColor(136,136,136); pdf.text(title, margin, margin - 10);
                 }
-                setIsGenerating(true);
-                try {
-                    await new Promise(resolve => setTimeout(resolve, 2500));
-                    const seed = coverPrompt.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-                    const result = { url: `https://picsum.photos/seed/${seed}/600/900`, prompt: coverPrompt, style: coverStyle, timestamp: new Date().toISOString() };
-                    setGeneratedCover(result);
-                    setGeneratedImages(prev => [...prev, result]);
-                    setImageSource('ai');
-                    showNotification('✓ AI Cover generated!');
-                } catch (error) {
-                    showNotification('Error generating cover', 'error');
-                } finally {
-                    setIsGenerating(false);
+                pdf.addPage(); pdf.setFillColor(250,248,245); pdf.rect(0,0,pageWidth,pageHeight,'F'); currentY = margin + 40; pageNum++;
+              }
+              pdf.setFontSize(18); pdf.setFont('helvetica','bold'); pdf.setTextColor(212,175,55); pdf.text(para.trim(), pageWidth/2, currentY, { align: 'center' });
+              currentY += 45;
+              pdf.setFontSize(parseInt(fontSize)); pdf.setFont('helvetica','normal'); pdf.setTextColor(42,42,42);
+            } else {
+              const lines = pdf.splitTextToSize(para.trim(), contentWidth);
+              lines.forEach(line => {
+                if (currentY > pageHeight - margin - 35) {
+                  if (showPageNumbers) { pdf.setFontSize(10); pdf.setTextColor(136,136,136); pdf.text(String(pageNum - 2), pageWidth/2, pageHeight - 25, { align: 'center' }); }
+                  if (showHeader) { pdf.setFontSize(10); pdf.setTextColor(136,136,136); pdf.text(title, margin, margin - 10); }
+                  pdf.addPage(); pdf.setFillColor(250,248,245); pdf.rect(0,0,pageWidth,pageHeight,'F'); currentY = margin + 30; pageNum++;
+                  pdf.setFontSize(parseInt(fontSize)); pdf.setTextColor(42,42,42);
                 }
-            };
+                pdf.text(line, margin, currentY); currentY += lineHeight;
+              });
+              currentY += lineHeight * 0.4;
+            }
+          });
 
-            // ========== REAL PDF EXPORT ==========
-            const exportPDF = async () => {
-                setIsExporting(true);
-                showNotification('📄 Creating PDF... Please wait');
-                
-                try {
-                    const { jsPDF } = window.jspdf;
-                    const pageSizes = { '6x9': [432, 648], '5.5x8.5': [396, 612], '5x8': [360, 576], 'a5': [420, 595], 'letter': [612, 792] };
-                    const [pageWidth, pageHeight] = pageSizes[pageSize] || pageSizes['6x9'];
-                    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: [pageWidth, pageHeight] });
-                    const margin = 50;
-                    const contentWidth = pageWidth - (margin * 2);
-                    const lineHeight = parseInt(fontSize) * parseFloat(lineSpacing);
-                    const title = ebookTitle || 'Untitled Book';
-                    const author = ebookAuthor || 'Unknown Author';
+          if (showPageNumbers) { pdf.setFontSize(10); pdf.setTextColor(136,136,136); pdf.text(String(pageNum - 2), pageWidth/2, pageHeight - 25, { align: 'center' }); }
+          if (showHeader) { pdf.setFontSize(10); pdf.setTextColor(136,136,136); pdf.text(title, margin, margin - 10); }
 
-                    // COVER PAGE
-                    pdf.setFillColor(26, 26, 46);
-                    pdf.rect(0, 0, pageWidth, pageHeight, 'F');
-                    pdf.setFillColor(212, 175, 55);
-                    pdf.rect(0, 0, pageWidth, 8, 'F');
-                    pdf.setTextColor(255, 255, 255);
-                    pdf.setFontSize(28);
-                    pdf.setFont('helvetica', 'bold');
-                    const titleLines = pdf.splitTextToSize(title, contentWidth);
-                    pdf.text(titleLines, pageWidth / 2, pageHeight * 0.4, { align: 'center' });
-                    pdf.setDrawColor(212, 175, 55);
-                    pdf.setLineWidth(1);
-                    pdf.line(pageWidth * 0.3, pageHeight * 0.52, pageWidth * 0.7, pageHeight * 0.52);
-                    pdf.setFontSize(16);
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.text(author, pageWidth / 2, pageHeight * 0.6, { align: 'center' });
+          const filename = `${title.replace(/[^a-z0-9]/gi,'_')}.pdf`;
+          pdf.save(filename);
+          showNotification(`✓ PDF Downloaded: ${filename}`);
+        } catch (err) {
+          console.error('PDF Error', err);
+          showNotification('Error creating PDF', 'error');
+        } finally { setIsExporting(false); }
+      };
 
-                    // TITLE PAGE
-                    pdf.addPage();
-                    pdf.setFillColor(250, 248, 245);
-                    pdf.rect(0, 0, pageWidth, pageHeight, 'F');
-                    pdf.setTextColor(42, 42, 42);
-                    pdf.setFontSize(24);
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.text(title, pageWidth / 2, pageHeight * 0.4, { align: 'center' });
-                    pdf.setFontSize(14);
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.text('by', pageWidth / 2, pageHeight * 0.46, { align: 'center' });
-                    pdf.setFontSize(18);
-                    pdf.text(author, pageWidth / 2, pageHeight * 0.52, { align: 'center' });
+      // EPUB export (same approach as earlier)
+      const exportEPUB = async () => {
+        setIsExporting(true);
+        showNotification('📚 Creating EPUB...');
+        try {
+          const zip = new JSZip();
+          const title = ebookTitle || 'Untitled Book';
+          const subtitle = ebookSubtitle || '';
+          const author = ebookAuthor || 'Unknown Author';
+          const imprint = ebookImprint || author;
+          const currentYear = new Date().getFullYear();
+          const content = documentContent || manuscriptContent || sampleContent;
+          const uuid = 'urn:uuid:' + Date.now() + '-' + Math.random().toString(36).substr(2,9);
 
-                    // CONTENT PAGES
-                    const content = documentContent || sampleContent;
-                    const paragraphs = content.split('\n\n').filter(p => p.trim());
-                    
-                    pdf.addPage();
-                    pdf.setFillColor(250, 248, 245);
-                    pdf.rect(0, 0, pageWidth, pageHeight, 'F');
-                    
-                    let currentY = margin + 40;
-                    let pageNum = 3;
-                    
-                    pdf.setTextColor(42, 42, 42);
-                    pdf.setFontSize(parseInt(fontSize));
-                    pdf.setFont('helvetica', 'normal');
+          const coverUrl = getCurrentCoverImage();
+          let coverData = null;
+          if (coverUrl) {
+            const response = await fetch(coverUrl.startsWith('data:') ? coverUrl : coverUrl);
+            coverData = await response.blob();
+            zip.file('OEBPS/cover.jpg', coverData, { binary: true });
+          }
 
-                    paragraphs.forEach((para) => {
-                        const isChapter = para.match(/^(Chapter|CHAPTER|Part|PART)\s/i);
-                        
-                        if (isChapter) {
-                            if (currentY > margin + 100) {
-                                pdf.setFontSize(10);
-                                pdf.setTextColor(136, 136, 136);
-                                pdf.text(String(pageNum), pageWidth / 2, pageHeight - 25, { align: 'center' });
-                                pdf.addPage();
-                                pdf.setFillColor(250, 248, 245);
-                                pdf.rect(0, 0, pageWidth, pageHeight, 'F');
-                                currentY = margin + 40;
-                                pageNum++;
-                            }
-                            pdf.setFontSize(18);
-                            pdf.setFont('helvetica', 'bold');
-                            pdf.setTextColor(212, 175, 55);
-                            pdf.text(para.trim(), pageWidth / 2, currentY, { align: 'center' });
-                            currentY += 45;
-                            pdf.setFontSize(parseInt(fontSize));
-                            pdf.setFont('helvetica', 'normal');
-                            pdf.setTextColor(42, 42, 42);
-                        } else {
-                            const lines = pdf.splitTextToSize(para.trim(), contentWidth);
-                            lines.forEach(line => {
-                                if (currentY > pageHeight - margin - 35) {
-                                    pdf.setFontSize(10);
-                                    pdf.setTextColor(136, 136, 136);
-                                    pdf.text(String(pageNum), pageWidth / 2, pageHeight - 25, { align: 'center' });
-                                    pdf.addPage();
-                                    pdf.setFillColor(250, 248, 245);
-                                    pdf.rect(0, 0, pageWidth, pageHeight, 'F');
-                                    currentY = margin + 30;
-                                    pageNum++;
-                                    pdf.setFontSize(parseInt(fontSize));
-                                    pdf.setTextColor(42, 42, 42);
-                                }
-                                pdf.text(line, margin, currentY);
-                                currentY += lineHeight;
-                            });
-                            currentY += lineHeight * 0.4;
-                        }
-                    });
-
-                    pdf.setFontSize(10);
-                    pdf.setTextColor(136, 136, 136);
-                    pdf.text(String(pageNum), pageWidth / 2, pageHeight - 25, { align: 'center' });
-
-                    const filename = `${title.replace(/[^a-z0-9]/gi, '_')}.pdf`;
-                    pdf.save(filename);
-                    showNotification(`✓ PDF Downloaded: ${filename}`);
-                } catch (error) {
-                    console.error('PDF Error:', error);
-                    showNotification('Error creating PDF', 'error');
-                } finally {
-                    setIsExporting(false);
-                }
-            };
-
-            // ========== REAL EPUB EXPORT ==========
-            const exportEPUB = async () => {
-                setIsExporting(true);
-                showNotification('📚 Creating EPUB... Please wait');
-                
-                try {
-                    const zip = new JSZip();
-                    const title = ebookTitle || 'Untitled Book';
-                    const author = ebookAuthor || 'Unknown Author';
-                    const content = documentContent || sampleContent;
-                    const uuid = 'urn:uuid:' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-
-                    zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
-
-                    zip.file('META-INF/container.xml', `<?xml version="1.0" encoding="UTF-8"?>
+          zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+          zip.file('META-INF/container.xml', `<?xml version="1.0" encoding="UTF-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-  <rootfiles>
-    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
-  </rootfiles>
+  <rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>
 </container>`);
 
-                    zip.file('OEBPS/content.opf', `<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="BookId">
-  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <dc:identifier id="BookId">${uuid}</dc:identifier>
-    <dc:title>${title}</dc:title>
-    <dc:creator>${author}</dc:creator>
-    <dc:language>en</dc:language>
-    <meta property="dcterms:modified">${new Date().toISOString().split('.')[0]}Z</meta>
-  </metadata>
-  <manifest>
+          let manifestItems = `
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
     <item id="style" href="style.css" media-type="text/css"/>
     <item id="titlepage" href="titlepage.xhtml" media-type="application/xhtml+xml"/>
-    <item id="chapter1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+    <item id="copyright" href="copyright.xhtml" media-type="application/xhtml+xml"/>
+    <item id="chapter1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>`;
+          let spineItems = `
+    <itemref idref="titlepage"/>
+    <itemref idref="copyright"/>
+    <itemref idref="chapter1"/>`;
+          let navItems = `
+    <li><a href="titlepage.xhtml">Title Page</a></li>
+    <li><a href="copyright.xhtml">Copyright</a></li>
+    <li><a href="chapter1.xhtml">Content</a></li>`;
+
+          if (coverData) {
+            manifestItems += `
+    <item id="cover" href="cover.xhtml" media-type="application/xhtml+xml" properties="cover"/>
+    <item id="cover-image" href="cover.jpg" media-type="image/jpeg" properties="cover-image"/>`;
+            spineItems = `<itemref idref="cover"/>` + spineItems;
+            navItems = `<li><a href="cover.xhtml">Cover</a></li>` + navItems;
+          }
+
+          zip.file('OEBPS/content.opf', `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="BookId">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="BookId">${uuid}</dc:identifier>
+    <dc:title>${title}${subtitle ? `: ${subtitle}` : ''}</dc:title>
+    <dc:creator>${author}</dc:creator>
+    <dc:language>en</dc:language>
+    <dc:rights>Copyright © ${currentYear} ${imprint}. All rights reserved.</dc:rights>
+    <meta property="dcterms:modified">${new Date().toISOString().split('.')[0]}Z</meta>
+    ${coverData ? `<meta name="cover" content="cover-image"/>` : ''}
+  </metadata>
+  <manifest>
+    ${manifestItems}
   </manifest>
   <spine toc="ncx">
-    <itemref idref="titlepage"/>
-    <itemref idref="chapter1"/>
+    ${spineItems}
   </spine>
 </package>`);
 
-                    zip.file('OEBPS/toc.ncx', `<?xml version="1.0" encoding="UTF-8"?>
+          zip.file('OEBPS/toc.ncx', `<?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
   <head><meta name="dtb:uid" content="${uuid}"/></head>
   <docTitle><text>${title}</text></docTitle>
   <navMap>
     <navPoint id="titlepage" playOrder="1"><navLabel><text>Title Page</text></navLabel><content src="titlepage.xhtml"/></navPoint>
-    <navPoint id="chapter1" playOrder="2"><navLabel><text>Content</text></navLabel><content src="chapter1.xhtml"/></navPoint>
+    <navPoint id="copyright" playOrder="2"><navLabel><text>Copyright</text></navLabel><content src="copyright.xhtml"/></navPoint>
+    <navPoint id="chapter1" playOrder="3"><navLabel><text>Content</text></navLabel><content src="chapter1.xhtml"/></navPoint>
   </navMap>
 </ncx>`);
 
-                    zip.file('OEBPS/nav.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+          zip.file('OEBPS/nav.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
 <head><title>Table of Contents</title><link rel="stylesheet" type="text/css" href="style.css"/></head>
 <body>
   <nav epub:type="toc"><h1>Table of Contents</h1>
-    <ol><li><a href="titlepage.xhtml">Title Page</a></li><li><a href="chapter1.xhtml">Content</a></li></ol>
+    <ol>${navItems}</ol>
   </nav>
 </body>
 </html>`);
 
-                    zip.file('OEBPS/style.css', `
+          zip.file('OEBPS/style.css', `
 body { font-family: Georgia, serif; font-size: ${fontSize}pt; line-height: ${lineSpacing}; margin: 1em; color: #2a2a2a; }
 h1 { font-size: 1.8em; text-align: center; margin: 1.5em 0 1em; color: #D4AF37; }
 p { text-align: justify; text-indent: 1.5em; margin: 0.5em 0; }
 .title-page { text-align: center; padding-top: 30%; }
 .title { font-size: 2em; margin-bottom: 0.5em; }
 .author { font-size: 1.3em; color: #666; }
-.drop-cap { float: left; font-size: 3em; line-height: 0.8; padding-right: 0.1em; color: #D4AF37; }`);
+.drop-cap { float: left; font-size: 3em; line-height: 0.8; padding-right: 0.1em; color: #D4AF37; }
+.cover { text-align: center; margin: 0; padding: 0; }
+.cover img { width: 100%; height: auto; }`);
 
-                    zip.file('OEBPS/titlepage.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+          zip.file('OEBPS/titlepage.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head><title>${title}</title><link rel="stylesheet" type="text/css" href="style.css"/></head>
-<body><div class="title-page"><h1 class="title">${title}</h1><p class="author">by ${author}</p></div></body>
+<body><div class="title-page"><h1 class="title">${title}</h1>${subtitle ? `<h2>${subtitle}</h2>` : ''}${tagline ? `<p>${tagline}</p>` : ''}<p class="author">by ${author}</p></div></body>
 </html>`);
 
-                    const paragraphs = content.split('\n\n').filter(p => p.trim());
-                    let htmlContent = '';
-                    paragraphs.forEach((para, idx) => {
-                        const trimmed = para.trim();
-                        if (trimmed.match(/^(Chapter|CHAPTER|Part|PART)\s/i)) {
-                            htmlContent += `<h1>${trimmed}</h1>\n`;
-                        } else {
-                            if (idx === 0 || paragraphs[idx - 1]?.match(/^(Chapter|CHAPTER|Part|PART)\s/i)) {
-                                const firstChar = trimmed.charAt(0);
-                                const rest = trimmed.slice(1);
-                                htmlContent += `<p><span class="drop-cap">${firstChar}</span>${rest}</p>\n`;
-                            } else {
-                                htmlContent += `<p>${trimmed}</p>\n`;
-                            }
-                        }
-                    });
+          zip.file('OEBPS/copyright.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>Copyright</title><link rel="stylesheet" type="text/css" href="style.css"/></head>
+<body>
+  <p style="text-align: center; font-size: 0.8em;">Copyright © ${currentYear} ${imprint}. All rights reserved.</p>
+  <p style="text-align: center; font-size: 0.8em;">Published by ${imprint}</p>
+</body>
+</html>`);
 
-                    zip.file('OEBPS/chapter1.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+          if (coverData) {
+            zip.file('OEBPS/cover.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>Cover</title><link rel="stylesheet" type="text/css" href="style.css"/></head>
+<body><div class="cover"><img src="cover.jpg" alt="Cover"/></div></body>
+</html>`);
+          }
+
+          const paragraphs = content.split('\n\n').filter(p => p.trim());
+          let htmlContent = '';
+          paragraphs.forEach((para, idx) => {
+            const trimmed = para.trim();
+            if (trimmed.match(/^(Chapter|CHAPTER|Part|PART)\s/i)) {
+              htmlContent += `<h1>${trimmed}</h1>\n`;
+            } else {
+              if (idx === 0 || paragraphs[idx - 1]?.match(/^(Chapter|CHAPTER|Part|PART)\s/i)) {
+                const firstChar = trimmed.charAt(0);
+                const rest = trimmed.slice(1);
+                htmlContent += `<p><span class="drop-cap">${firstChar}</span>${rest}</p>\n`;
+              } else {
+                htmlContent += `<p>${trimmed}</p>\n`;
+              }
+            }
+          });
+
+          zip.file('OEBPS/chapter1.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head><title>${title}</title><link rel="stylesheet" type="text/css" href="style.css"/></head>
 <body>${htmlContent}</body>
 </html>`);
 
-                    const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/epub+zip', compression: 'DEFLATE' });
-                    const filename = `${title.replace(/[^a-z0-9]/gi, '_')}.epub`;
-                    saveAs(blob, filename);
-                    showNotification(`✓ EPUB Downloaded: ${filename}`);
-                } catch (error) {
-                    console.error('EPUB Error:', error);
-                    showNotification('Error creating EPUB', 'error');
-                } finally {
-                    setIsExporting(false);
-                }
-            };
+          const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/epub+zip', compression: 'DEFLATE' });
+          const filename = `${title.replace(/[^a-z0-9]/gi,'_')}.epub`;
+          saveAs(blob, filename);
+          showNotification(`✓ EPUB Downloaded: ${filename}`);
+        } catch (err) {
+          console.error('EPUB Error', err);
+          showNotification('Error creating EPUB', 'error');
+        } finally { setIsExporting(false); }
+      };
 
-            const downloadCoverImage = async () => {
-                const coverImage = getCurrentCoverImage();
-                if (!coverImage) { showNotification('No cover image', 'error'); return; }
-                setIsExporting(true);
-                try {
-                    if (coverImage.startsWith('data:')) {
-                        const link = document.createElement('a');
-                        link.href = coverImage;
-                        link.download = `${(ebookTitle || 'cover').replace(/[^a-z0-9]/gi, '_')}_cover.png`;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                    } else {
-                        const response = await fetch(coverImage);
-                        const blob = await response.blob();
-                        saveAs(blob, `${(ebookTitle || 'cover').replace(/[^a-z0-9]/gi, '_')}_cover.jpg`);
-                    }
-                    showNotification('✓ Cover downloaded!');
-                } catch (error) {
-                    showNotification('Error downloading cover', 'error');
-                } finally {
-                    setIsExporting(false);
-                }
-            };
+      // Download cover image
+      const downloadCoverImage = async () => {
+        const coverImage = getCurrentCoverImage();
+        if (!coverImage) { showNotification('No cover image', 'error'); return; }
+        setIsExporting(true);
+        try {
+          if (coverImage.startsWith('data:')) {
+            const link = document.createElement('a'); link.href = coverImage; link.download = `${(ebookTitle||'cover').replace(/[^a-z0-9]/gi,'_')}_cover.png`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+          } else {
+            const response = await fetch(coverImage); const blob = await response.blob(); saveAs(blob, `${(ebookTitle||'cover').replace(/[^a-z0-9]/gi,'_')}_cover.jpg`);
+          }
+          showNotification('✓ Cover downloaded!');
+        } catch (err) {
+          showNotification('Error downloading cover', 'error');
+        } finally { setIsExporting(false); }
+      };
 
-            const exportTXT = () => {
-                const content = documentContent || sampleContent;
-                const title = ebookTitle || 'Untitled Book';
-                const author = ebookAuthor || 'Unknown Author';
-                const fullText = `${title}\nby ${author}\n\n${'='.repeat(50)}\n\n${content}`;
-                const blob = new Blob([fullText], { type: 'text/plain;charset=utf-8' });
-                saveAs(blob, `${title.replace(/[^a-z0-9]/gi, '_')}.txt`);
-                showNotification('✓ TXT downloaded!');
-            };
+      const exportTXT = () => {
+        const content = documentContent || manuscriptContent || sampleContent;
+        const title = ebookTitle || 'Untitled Book';
+        const author = ebookAuthor || 'Unknown Author';
+        const fullText = `${title}\nby ${author}\n\n${'='.repeat(50)}\n\n${content}`;
+        const blob = new Blob([fullText], { type: 'text/plain;charset=utf-8' });
+        saveAs(blob, `${title.replace(/[^a-z0-9]/gi,'_')}.txt`);
+        showNotification('✓ TXT downloaded!');
+      };
 
-            const TabButton = ({ id, label, icon }) => (
-                <button onClick={() => setActiveTab(id)} style={{
-                    padding: '12px 18px', border: 'none',
-                    background: activeTab === id ? 'linear-gradient(135deg, #D4AF37 0%, #F4E5B2 50%, #D4AF37 100%)' : 'transparent',
-                    color: activeTab === id ? '#0D0D0D' : '#808080', fontSize: '11px', fontWeight: '600',
-                    letterSpacing: '1px', textTransform: 'uppercase', cursor: 'pointer',
-                    fontFamily: "'Cormorant Garamond', Georgia, serif", borderRadius: activeTab === id ? '4px' : '0',
-                }}>
-                    <span style={{ marginRight: '5px' }}>{icon}</span>{label}
-                </button>
-            );
+      // Local grammar quick fix
+      const grammarQuickFix = (text='') => {
+        if (!text) return text;
+        let s = text.replace(/\t/g,' ').replace(/\s{2,}/g,' ');
+        s = s.replace(/\n{3,}/g, '\n\n');
+        s = s.replace(/([.!?])\s+([a-z])/g, (m,p1,p2) => p1 + ' ' + p2.toUpperCase());
+        s = s.replace(/^\s*[a-z]/, (m) => m.toUpperCase());
+        return s.trim();
+      };
 
-            const BookCover = ({ size = 'large' }) => {
-                const coverImage = getCurrentCoverImage();
-                const isLarge = size === 'large';
-                const width = isLarge ? 260 : 160;
-                const height = isLarge ? 390 : 240;
-                
-                return (
-                    <div style={{
-                        width: `${width}px`, height: `${height}px`,
-                        background: coverImage ? 'transparent' : 'linear-gradient(145deg, #252530 0%, #1a1a22 100%)',
-                        borderRadius: '4px', boxShadow: '15px 15px 50px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden', flexShrink: 0,
-                    }}>
-                        {coverImage && (
-                            <img src={coverImage} alt="Cover" crossOrigin="anonymous" style={{
-                                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: imageOpacity / 100,
-                            }} />
-                        )}
-                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '5px', background: 'linear-gradient(90deg, #D4AF37, #F4E5B2, #D4AF37)', zIndex: 10 }} />
-                        <div style={{
-                            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 5, padding: isLarge ? '20px 15px' : '12px 10px',
-                            background: coverImage ? `linear-gradient(180deg, rgba(0,0,0,${overlayOpacity/100}) 0%, transparent 35%, transparent 65%, rgba(0,0,0,${overlayOpacity/100 + 0.2}) 100%)` : 'transparent',
-                            display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                        }}>
-                            {coverImage || ebookTitle ? (
-                                <>
-                                    <div style={{ textAlign: 'center', marginTop: isLarge ? '30px' : '15px' }}>
-                                        <div style={{ fontSize: isLarge ? '9px' : '7px', letterSpacing: '2px', color: '#D4AF37', marginBottom: '10px', textTransform: 'uppercase', textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>{coverStyle} Edition</div>
-                                        <h3 style={{ fontSize: isLarge ? '20px' : '14px', fontWeight: '400', color: '#FFFFFF', lineHeight: '1.3', margin: 0, textShadow: '0 2px 15px rgba(0,0,0,0.9)', fontFamily: "'Playfair Display', Georgia, serif" }}>{ebookTitle || 'Your Title'}</h3>
-                                    </div>
-                                    <div style={{ textAlign: 'center' }}>
-                                        <div style={{ width: '35px', height: '1px', background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)', margin: '0 auto 10px' }} />
-                                        <p style={{ fontSize: isLarge ? '12px' : '9px', letterSpacing: '1px', color: '#E0E0E0', margin: 0, textTransform: 'uppercase', textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>{ebookAuthor || 'Author Name'}</p>
-                                    </div>
-                                </>
-                            ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#404050' }}>
-                                    <div style={{ fontSize: isLarge ? '38px' : '24px', marginBottom: '12px', opacity: 0.5, animation: 'float 3s ease-in-out infinite' }}>📚</div>
-                                    <p style={{ fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', textAlign: 'center' }}>Add image<br/>to preview</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                );
-            };
+      // Set preset
+      const setPreset = (preset) => {
+        setPageSize(preset.pageSize); setFontSize(preset.fontSize); setLineSpacing(preset.lineSpacing);
+        showNotification(`✓ Preset: ${preset.name} applied`);
+      };
 
-            return (
-                <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #0A0A0F 0%, #151520 50%, #0D0D12 100%)', fontFamily: "'Cormorant Garamond', Georgia, serif", color: '#E8E8E8' }}>
-                    
-                    {notification && (
-                        <div style={{
-                            position: 'fixed', top: '15px', right: '15px', padding: '14px 20px', zIndex: 1000, animation: 'fadeIn 0.3s ease',
-                            background: notification.type === 'error' ? 'linear-gradient(135deg, #8B0000 0%, #5C0000 100%)' : 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)',
-                            color: notification.type === 'error' ? '#FFF' : '#0D0D0D', borderRadius: '6px', fontWeight: '600', fontSize: '13px', maxWidth: '320px', boxShadow: '0 8px 30px rgba(0,0,0,0.4)',
-                        }}>{notification.message}</div>
-                    )}
-
-                    {isExporting && (
-                        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
-                            <div style={{ background: 'rgba(20, 20, 28, 0.95)', padding: '35px 50px', borderRadius: '8px', textAlign: 'center', border: '1px solid rgba(212, 175, 55, 0.3)' }}>
-                                <div style={{ width: '45px', height: '45px', border: '3px solid rgba(212, 175, 55, 0.3)', borderTop: '3px solid #D4AF37', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 15px' }} />
-                                <p style={{ color: '#D4AF37', fontSize: '14px', letterSpacing: '2px' }}>GENERATING...</p>
-                            </div>
-                        </div>
-                    )}
-
-                    <header style={{ padding: '20px 15px', borderBottom: '1px solid rgba(212, 175, 55, 0.15)', background: 'rgba(10, 10, 15, 0.9)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: '1300px', margin: '0 auto', flexWrap: 'wrap', gap: '12px' }}>
-                            <div>
-                                <h1 style={{ fontSize: 'clamp(16px, 4vw, 22px)', fontWeight: '300', letterSpacing: '4px', textTransform: 'uppercase', background: 'linear-gradient(135deg, #D4AF37 0%, #F4E5B2 40%, #D4AF37 80%, #AA8C2C 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', margin: 0 }}>Premium Ebook Studio</h1>
-                                <p style={{ fontSize: '9px', letterSpacing: '2px', color: '#505050', marginTop: '3px', textTransform: 'uppercase' }}>Real PDF & EPUB Export</p>
-                            </div>
-                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                <button onClick={exportPDF} disabled={isExporting} style={{ padding: '10px 16px', background: 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)', border: 'none', borderRadius: '4px', color: '#0D0D0D', fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', cursor: isExporting ? 'wait' : 'pointer', fontFamily: 'inherit', fontWeight: '600' }}>📄 PDF</button>
-                                <button onClick={exportEPUB} disabled={isExporting} style={{ padding: '10px 16px', background: 'transparent', border: '1px solid rgba(212, 175, 55, 0.5)', borderRadius: '4px', color: '#D4AF37', fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', cursor: isExporting ? 'wait' : 'pointer', fontFamily: 'inherit' }}>📚 EPUB</button>
-                            </div>
-                        </div>
-                    </header>
-
-                    <nav style={{ display: 'flex', justifyContent: 'center', gap: '2px', padding: '12px 8px', background: 'rgba(15, 15, 20, 0.6)', borderBottom: '1px solid rgba(212, 175, 55, 0.1)', flexWrap: 'wrap' }}>
-                        <TabButton id="cover" label="Cover" icon="📖" />
-                        <TabButton id="upload" label="Manuscript" icon="📤" />
-                        <TabButton id="template" label="Templates" icon="✨" />
-                        <TabButton id="preview" label="Preview" icon="👁" />
-                        <TabButton id="export" label="Export" icon="💾" />
-                    </nav>
-
-                    <main style={{ maxWidth: '1300px', margin: '0 auto', padding: '25px 12px' }}>
-                        
-                        {/* COVER TAB */}
-                        {activeTab === 'cover' && (
-                            <div style={{ animation: 'fadeIn 0.4s ease', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '25px' }}>
-                                <div>
-                                    {/* Upload Image */}
-                                    <div style={{ background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)', border: '2px solid rgba(212, 175, 55, 0.4)', borderRadius: '8px', padding: '20px', marginBottom: '18px' }}>
-                                        <h2 style={{ fontSize: '15px', letterSpacing: '2px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '12px', fontWeight: '500' }}>📷 Upload Image</h2>
-                                        <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
-                                        <div onClick={() => imageInputRef.current?.click()} style={{ border: '2px dashed rgba(212, 175, 55, 0.4)', borderRadius: '8px', padding: '20px 12px', textAlign: 'center', cursor: 'pointer', background: 'rgba(212, 175, 55, 0.03)' }}>
-                                            <div style={{ fontSize: '28px', marginBottom: '6px' }}>🖼️</div>
-                                            <p style={{ color: '#D4AF37', fontSize: '12px', marginBottom: '3px' }}>Click to upload</p>
-                                            <p style={{ color: '#404040', fontSize: '9px' }}>JPG, PNG, GIF, WebP, etc.</p>
-                                        </div>
-                                        {uploadedCoverImage && (
-                                            <div style={{ marginTop: '10px', padding: '8px 10px', background: 'rgba(212, 175, 55, 0.1)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                                                <p style={{ color: '#D4AF37', fontSize: '11px', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>✓ {uploadedCoverImage.name}</p>
-                                                <button onClick={() => { setImageSource('upload'); showNotification('✓ Using uploaded image'); }} style={{ padding: '5px 10px', background: imageSource === 'upload' ? 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)' : 'transparent', border: '1px solid rgba(212, 175, 55, 0.5)', borderRadius: '3px', color: imageSource === 'upload' ? '#0D0D0D' : '#D4AF37', fontSize: '8px', letterSpacing: '1px', textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', fontWeight: '600', whiteSpace: 'nowrap' }}>{imageSource === 'upload' ? '✓ Active' : 'Use'}</button>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* AI Generate */}
-                                    <div style={{ background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)', border: '1px solid rgba(212, 175, 55, 0.2)', borderRadius: '8px', padding: '20px', marginBottom: '18px' }}>
-                                        <h2 style={{ fontSize: '15px', letterSpacing: '2px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '12px', fontWeight: '500' }}>🎬 AI Generate</h2>
-                                        <div style={{ marginBottom: '12px' }}>
-                                            <label style={{ display: 'block', fontSize: '9px', letterSpacing: '1px', textTransform: 'uppercase', color: '#606060', marginBottom: '6px' }}>Style</label>
-                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
-                                                {coverStyles.map(style => (
-                                                    <button key={style.id} onClick={() => setCoverStyle(style.id)} style={{ padding: '8px 5px', background: coverStyle === style.id ? 'rgba(212, 175, 55, 0.2)' : 'rgba(30, 30, 40, 0.5)', border: coverStyle === style.id ? '1px solid rgba(212, 175, 55, 0.5)' : '1px solid rgba(50, 50, 70, 0.3)', borderRadius: '4px', color: coverStyle === style.id ? '#D4AF37' : '#707070', fontSize: '9px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>
-                                                        <div style={{ fontSize: '14px', marginBottom: '2px' }}>{style.icon}</div>{style.name}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <div style={{ marginBottom: '10px' }}>
-                                            <label style={{ display: 'block', fontSize: '9px', letterSpacing: '1px', textTransform: 'uppercase', color: '#606060', marginBottom: '5px' }}>Describe Cover</label>
-                                            <textarea value={coverPrompt} onChange={(e) => setCoverPrompt(e.target.value)} placeholder="e.g., Woman on cliff at sunset, dramatic clouds..." rows={2} style={{ width: '100%', padding: '10px', background: 'rgba(20, 20, 30, 0.8)', border: '1px solid rgba(70, 70, 90, 0.3)', borderRadius: '4px', color: '#E8E8E8', fontSize: '12px', fontFamily: 'inherit', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
-                                        </div>
-                                        <div style={{ marginBottom: '10px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                                            {['Sunset mountains', 'Forest path', 'Ocean night', 'City lights'].map(p => (
-                                                <button key={p} onClick={() => setCoverPrompt(p)} style={{ padding: '4px 8px', background: 'rgba(30, 30, 40, 0.6)', border: '1px solid rgba(50, 50, 70, 0.3)', borderRadius: '10px', color: '#606060', fontSize: '8px', cursor: 'pointer', fontFamily: 'inherit' }}>{p}</button>
-                                            ))}
-                                        </div>
-                                        <button onClick={generateCover} disabled={isGenerating || !coverPrompt.trim()} style={{ width: '100%', padding: '12px', background: isGenerating ? 'linear-gradient(90deg, #444 0%, #555 50%, #444 100%)' : 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)', backgroundSize: isGenerating ? '200% 100%' : '100% 100%', animation: isGenerating ? 'shimmer 1.5s infinite' : 'none', border: 'none', borderRadius: '4px', color: '#0D0D0D', fontSize: '11px', letterSpacing: '1px', textTransform: 'uppercase', cursor: isGenerating ? 'wait' : 'pointer', fontFamily: 'inherit', fontWeight: '600', opacity: !coverPrompt.trim() ? 0.5 : 1 }}>{isGenerating ? '⏳ Generating...' : '✦ Generate AI Cover'}</button>
-                                        {generatedImages.length > 0 && (
-                                            <div style={{ marginTop: '10px' }}>
-                                                <p style={{ fontSize: '8px', color: '#404040', letterSpacing: '1px', marginBottom: '5px', textTransform: 'uppercase' }}>Previous:</p>
-                                                <div style={{ display: 'flex', gap: '5px', overflowX: 'auto' }}>
-                                                    {generatedImages.slice(-5).map((img, idx) => (
-                                                        <div key={idx} onClick={() => { setGeneratedCover(img); setImageSource('ai'); }} style={{ width: '40px', height: '58px', background: `url(${img.url}) center/cover`, borderRadius: '3px', cursor: 'pointer', border: generatedCover?.timestamp === img.timestamp && imageSource === 'ai' ? '2px solid #D4AF37' : '2px solid transparent', flexShrink: 0 }} />
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Controls */}
-                                    <div style={{ background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)', border: '1px solid rgba(212, 175, 55, 0.2)', borderRadius: '8px', padding: '20px' }}>
-                                        <h2 style={{ fontSize: '15px', letterSpacing: '2px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '12px', fontWeight: '500' }}>🎚️ Controls</h2>
-                                        <div style={{ marginBottom: '12px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}><label style={{ fontSize: '10px', color: '#808080' }}>Image Opacity</label><span style={{ fontSize: '10px', color: '#D4AF37' }}>{imageOpacity}%</span></div>
-                                            <input type="range" min="0" max="100" value={imageOpacity} onChange={(e) => setImageOpacity(Number(e.target.value))} style={{ width: '100%', accentColor: '#D4AF37', cursor: 'pointer' }} />
-                                        </div>
-                                        <div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}><label style={{ fontSize: '10px', color: '#808080' }}>Text Overlay</label><span style={{ fontSize: '10px', color: '#D4AF37' }}>{overlayOpacity}%</span></div>
-                                            <input type="range" min="0" max="100" value={overlayOpacity} onChange={(e) => setOverlayOpacity(Number(e.target.value))} style={{ width: '100%', accentColor: '#D4AF37', cursor: 'pointer' }} />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    {/* Book Details */}
-                                    <div style={{ background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)', border: '1px solid rgba(212, 175, 55, 0.2)', borderRadius: '8px', padding: '20px', marginBottom: '18px' }}>
-                                        <h2 style={{ fontSize: '15px', letterSpacing: '2px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '12px', fontWeight: '500' }}>📝 Book Details</h2>
-                                        <div style={{ marginBottom: '10px' }}>
-                                            <label style={{ display: 'block', fontSize: '9px', letterSpacing: '1px', textTransform: 'uppercase', color: '#606060', marginBottom: '5px' }}>Title</label>
-                                            <input type="text" value={ebookTitle} onChange={(e) => setEbookTitle(e.target.value)} placeholder="Your book title..." style={{ width: '100%', padding: '10px', background: 'rgba(20, 20, 30, 0.8)', border: '1px solid rgba(70, 70, 90, 0.3)', borderRadius: '4px', color: '#E8E8E8', fontSize: '13px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
-                                        </div>
-                                        <div>
-                                            <label style={{ display: 'block', fontSize: '9px', letterSpacing: '1px', textTransform: 'uppercase', color: '#606060', marginBottom: '5px' }}>Author</label>
-                                            <input type="text" value={ebookAuthor} onChange={(e) => setEbookAuthor(e.target.value)} placeholder="Your name..." style={{ width: '100%', padding: '10px', background: 'rgba(20, 20, 30, 0.8)', border: '1px solid rgba(70, 70, 90, 0.3)', borderRadius: '4px', color: '#E8E8E8', fontSize: '13px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
-                                        </div>
-                                    </div>
-
-                                    {/* Live Preview */}
-                                    <div style={{ background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)', border: '1px solid rgba(212, 175, 55, 0.2)', borderRadius: '8px', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                        <h2 style={{ fontSize: '15px', letterSpacing: '2px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '15px', fontWeight: '500', alignSelf: 'flex-start' }}>👁️ Preview</h2>
-                                        <BookCover size="large" />
-                                        <div style={{ marginTop: '12px', padding: '6px 14px', background: 'rgba(212, 175, 55, 0.1)', borderRadius: '12px', fontSize: '9px', color: '#D4AF37', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                                            {imageSource === 'upload' ? '📷 Uploaded' : imageSource === 'ai' ? '🎬 AI Generated' : '📚 No Image'}
-                                        </div>
-                                        {getCurrentCoverImage() && (
-                                            <button onClick={downloadCoverImage} style={{ marginTop: '10px', padding: '8px 16px', background: 'transparent', border: '1px solid rgba(212, 175, 55, 0.4)', borderRadius: '4px', color: '#D4AF37', fontSize: '9px', letterSpacing: '1px', textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit' }}>⬇ Download Cover</button>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* UPLOAD TAB */}
-                        {activeTab === 'upload' && (
-                            <div style={{ animation: 'fadeIn 0.4s ease', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '25px' }}>
-                                <div style={{ background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)', border: '1px solid rgba(212, 175, 55, 0.2)', borderRadius: '8px', padding: '20px' }}>
-                                    <h2 style={{ fontSize: '15px', letterSpacing: '2px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '15px', fontWeight: '500' }}>📤 Upload Manuscript</h2>
-                                    <input ref={fileInputRef} type="file" accept=".txt,.doc,.docx,.rtf,.md" onChange={handleFileUpload} style={{ display: 'none' }} />
-                                    <div onClick={() => fileInputRef.current?.click()} style={{ border: '2px dashed rgba(212, 175, 55, 0.4)', borderRadius: '8px', padding: '35px 15px', textAlign: 'center', cursor: 'pointer', background: 'rgba(212, 175, 55, 0.03)' }}>
-                                        <div style={{ fontSize: '36px', marginBottom: '10px' }}>📄</div>
-                                        <p style={{ color: '#D4AF37', fontSize: '13px', marginBottom: '5px' }}>Click to upload</p>
-                                        <p style={{ color: '#505050', fontSize: '10px' }}>TXT, DOC, DOCX, RTF, MD</p>
-                                    </div>
-                                    {uploadedDoc && (
-                                        <div style={{ marginTop: '12px', padding: '10px', background: 'rgba(212, 175, 55, 0.1)', borderRadius: '4px' }}>
-                                            <p style={{ color: '#D4AF37', fontSize: '12px', margin: '0 0 3px 0' }}>✓ {uploadedDoc.name}</p>
-                                            <p style={{ color: '#505050', fontSize: '10px', margin: 0 }}>{uploadedDoc.size}</p>
-                                        </div>
-                                    )}
-                                    <div style={{ marginTop: '15px', padding: '12px', background: 'rgba(30, 30, 40, 0.5)', borderRadius: '4px' }}>
-                                        <p style={{ color: '#707070', fontSize: '10px', lineHeight: '1.5' }}>💡 Use "Chapter 1:", "Chapter 2:", etc. for auto chapter detection.</p>
-                                    </div>
-                                </div>
-                                <div style={{ background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)', border: '1px solid rgba(212, 175, 55, 0.2)', borderRadius: '8px', padding: '20px' }}>
-                                    <h2 style={{ fontSize: '15px', letterSpacing: '2px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '15px', fontWeight: '500' }}>📑 Structure</h2>
-                                    {chapters.length > 0 ? (
-                                        <div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', padding: '8px 10px', background: 'rgba(212, 175, 55, 0.1)', borderRadius: '4px' }}>
-                                                <span style={{ color: '#D4AF37', fontSize: '11px' }}>{chapters.length} Section(s)</span>
-                                                <span style={{ color: '#606060', fontSize: '11px' }}>{chapters.reduce((a, c) => a + c.wordCount, 0).toLocaleString()} words</span>
-                                            </div>
-                                            <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
-                                                {chapters.map((ch) => (
-                                                    <div key={ch.id} style={{ padding: '10px', background: 'rgba(25, 25, 35, 0.6)', border: '1px solid rgba(50, 50, 70, 0.2)', borderRadius: '4px', marginBottom: '5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <span style={{ color: '#C0C0C0', fontSize: '12px' }}>{ch.title}</span>
-                                                        <span style={{ color: '#505050', fontSize: '9px' }}>{ch.wordCount.toLocaleString()}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div style={{ textAlign: 'center', padding: '35px 12px', color: '#353540' }}>
-                                            <div style={{ fontSize: '32px', marginBottom: '10px', opacity: 0.5 }}>📑</div>
-                                            <p style={{ fontSize: '11px' }}>Upload to see structure</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* TEMPLATES TAB */}
-                        {activeTab === 'template' && (
-                            <div style={{ animation: 'fadeIn 0.4s ease' }}>
-                                <h2 style={{ fontSize: '16px', letterSpacing: '2px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '20px', fontWeight: '400', textAlign: 'center' }}>Select Template</h2>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                                    {templates.map(t => (
-                                        <div key={t.id} onClick={() => { setSelectedTemplate(t.id); showNotification(`✓ ${t.name} selected`); }} style={{ background: selectedTemplate === t.id ? 'linear-gradient(145deg, rgba(212, 175, 55, 0.15) 0%, rgba(20, 20, 28, 0.95) 100%)' : 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)', border: selectedTemplate === t.id ? '2px solid rgba(212, 175, 55, 0.6)' : '1px solid rgba(50, 50, 70, 0.2)', borderRadius: '8px', padding: '18px', cursor: 'pointer', position: 'relative' }}>
-                                            {selectedTemplate === t.id && <div style={{ position: 'absolute', top: '8px', right: '8px', width: '18px', height: '18px', background: 'linear-gradient(135deg, #D4AF37, #AA8C2C)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0D0D0D', fontSize: '10px' }}>✓</div>}
-                                            <div style={{ width: '40px', height: '58px', background: t.gradient, borderRadius: '3px', marginBottom: '10px', boxShadow: `0 5px 18px ${t.color}33` }} />
-                                            <h3 style={{ fontSize: '13px', color: '#C0C0C0', marginBottom: '3px', fontWeight: '400' }}>{t.name}</h3>
-                                            <p style={{ fontSize: '10px', color: '#505050', margin: 0 }}>{t.desc}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* PREVIEW TAB */}
-                        {activeTab === 'preview' && (
-                            <div style={{ animation: 'fadeIn 0.4s ease' }}>
-                                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '25px' }}>
-                                    <div style={{ display: 'flex', gap: '5px', background: 'rgba(20, 20, 28, 0.8)', padding: '5px', borderRadius: '6px' }}>
-                                        {[{ id: 'cover', label: 'Cover' }, { id: 'interior', label: 'Interior' }, { id: 'fullbook', label: 'Full Book' }].map(m => (
-                                            <button key={m.id} onClick={() => setPreviewMode(m.id)} style={{ padding: '9px 18px', background: previewMode === m.id ? 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)' : 'transparent', border: 'none', borderRadius: '4px', color: previewMode === m.id ? '#0D0D0D' : '#606060', fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', fontWeight: previewMode === m.id ? '600' : '400' }}>{m.label}</button>
-                                        ))}
-                                    </div>
-                                </div>
-                                {previewMode === 'cover' && <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', animation: 'fadeIn 0.3s ease' }}><BookCover size="large" /></div>}
-                                {previewMode === 'interior' && (
-                                    <div style={{ display: 'flex', justifyContent: 'center', animation: 'fadeIn 0.3s ease' }}>
-                                        <div style={{ width: '100%', maxWidth: '550px', background: '#FAF8F5', borderRadius: '4px', padding: '35px 45px', boxShadow: '0 18px 50px rgba(0,0,0,0.4)', fontFamily: 'Georgia, serif' }}>
-                                            <p style={{ fontSize: '8px', color: '#888', textAlign: 'center', marginBottom: '22px' }}>12</p>
-                                            <p style={{ fontSize: '12px', color: '#2A2A2A', lineHeight: '1.85', textAlign: 'justify' }}>
-                                                <span style={{ float: 'left', fontSize: '44px', lineHeight: '0.8', paddingRight: '7px', color: '#D4AF37', fontFamily: "'Playfair Display', Georgia, serif" }}>T</span>
-                                                he morning light filtered through the ancient windows, casting long shadows across the weathered floorboards. She stood there, breath held, knowing that the next few moments would change everything.
-                                            </p>
-                                            <p style={{ fontSize: '12px', color: '#2A2A2A', lineHeight: '1.85', textAlign: 'justify', marginTop: '16px' }}>Years of searching had led to this single moment. A lifetime of questions waiting to be answered.</p>
-                                            <div style={{ textAlign: 'center', marginTop: '30px', color: '#D4AF37', fontSize: '14px' }}>❧</div>
-                                        </div>
-                                    </div>
-                                )}
-                                {previewMode === 'fullbook' && (
-                                    <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap', animation: 'fadeIn 0.3s ease' }}>
-                                        <div style={{ textAlign: 'center' }}><p style={{ color: '#505050', fontSize: '9px', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '10px' }}>Cover</p><BookCover size="small" /></div>
-                                        <div style={{ textAlign: 'center' }}>
-                                            <p style={{ color: '#505050', fontSize: '9px', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '10px' }}>Interior</p>
-                                            <div style={{ display: 'flex', boxShadow: '0 12px 35px rgba(0,0,0,0.5)', borderRadius: '3px', overflow: 'hidden' }}>
-                                                <div style={{ width: '140px', height: '200px', background: '#FAF8F5', padding: '18px 12px', borderRight: '1px solid #E5E0D8', fontFamily: 'Georgia, serif' }}>
-                                                    <p style={{ fontSize: '6px', color: '#888', textAlign: 'center', marginBottom: '8px' }}>12</p>
-                                                    <p style={{ fontSize: '8px', color: '#2A2A2A', lineHeight: '1.55', textAlign: 'justify' }}>
-                                                        <span style={{ float: 'left', fontSize: '18px', lineHeight: '0.8', paddingRight: '3px', color: '#D4AF37' }}>T</span>
-                                                        he morning light filtered through. She stood there, breath held.
-                                                    </p>
-                                                </div>
-                                                <div style={{ width: '140px', height: '200px', background: '#FAF8F5', padding: '18px 12px', fontFamily: 'Georgia, serif' }}>
-                                                    <p style={{ fontSize: '8px', color: '#2A2A2A', lineHeight: '1.55', textAlign: 'justify' }}>Years of searching had led to this moment.</p>
-                                                    <div style={{ textAlign: 'center', marginTop: '18px', color: '#D4AF37', fontSize: '9px' }}>❧</div>
-                                                    <p style={{ fontSize: '6px', color: '#888', textAlign: 'center', marginTop: '35px' }}>13</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* EXPORT TAB */}
-                        {activeTab === 'export' && (
-                            <div style={{ animation: 'fadeIn 0.4s ease' }}>
-                                <h2 style={{ fontSize: '16px', letterSpacing: '2px', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '8px', fontWeight: '400', textAlign: 'center' }}>💾 Export Your Ebook</h2>
-                                <p style={{ textAlign: 'center', color: '#505050', fontSize: '11px', marginBottom: '25px' }}>Download real files to your device</p>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px', maxWidth: '850px', margin: '0 auto' }}>
-                                    <div style={{ background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)', border: '1px solid rgba(212, 175, 55, 0.3)', borderRadius: '8px', padding: '20px', textAlign: 'center' }}>
-                                        <div style={{ fontSize: '36px', marginBottom: '10px' }}>📄</div>
-                                        <h3 style={{ color: '#D4AF37', fontSize: '14px', marginBottom: '5px', fontWeight: '500' }}>PDF Format</h3>
-                                        <p style={{ color: '#606060', fontSize: '10px', marginBottom: '12px', lineHeight: '1.4' }}>Print-ready with cover, title page & formatted content.</p>
-                                        <button onClick={exportPDF} disabled={isExporting} style={{ width: '100%', padding: '10px', background: 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)', border: 'none', borderRadius: '4px', color: '#0D0D0D', fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', cursor: isExporting ? 'wait' : 'pointer', fontFamily: 'inherit', fontWeight: '600' }}>⬇ Download PDF</button>
-                                    </div>
-                                    <div style={{ background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)', border: '1px solid rgba(212, 175, 55, 0.3)', borderRadius: '8px', padding: '20px', textAlign: 'center' }}>
-                                        <div style={{ fontSize: '36px', marginBottom: '10px' }}>📚</div>
-                                        <h3 style={{ color: '#D4AF37', fontSize: '14px', marginBottom: '5px', fontWeight: '500' }}>EPUB Format</h3>
-                                        <p style={{ color: '#606060', fontSize: '10px', marginBottom: '12px', lineHeight: '1.4' }}>For Kindle, Apple Books, Kobo & other e-readers.</p>
-                                        <button onClick={exportEPUB} disabled={isExporting} style={{ width: '100%', padding: '10px', background: 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)', border: 'none', borderRadius: '4px', color: '#0D0D0D', fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', cursor: isExporting ? 'wait' : 'pointer', fontFamily: 'inherit', fontWeight: '600' }}>⬇ Download EPUB</button>
-                                    </div>
-                                    <div style={{ background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)', border: '1px solid rgba(212, 175, 55, 0.3)', borderRadius: '8px', padding: '20px', textAlign: 'center' }}>
-                                        <div style={{ fontSize: '36px', marginBottom: '10px' }}>🖼️</div>
-                                        <h3 style={{ color: '#D4AF37', fontSize: '14px', marginBottom: '5px', fontWeight: '500' }}>Cover Image</h3>
-                                        <p style={{ color: '#606060', fontSize: '10px', marginBottom: '12px', lineHeight: '1.4' }}>High-res cover for publishing platforms.</p>
-                                        <button onClick={downloadCoverImage} disabled={isExporting || !getCurrentCoverImage()} style={{ width: '100%', padding: '10px', background: getCurrentCoverImage() ? 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)' : 'rgba(50, 50, 70, 0.5)', border: 'none', borderRadius: '4px', color: getCurrentCoverImage() ? '#0D0D0D' : '#505050', fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', cursor: getCurrentCoverImage() ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: '600' }}>{getCurrentCoverImage() ? '⬇ Download Cover' : 'No Cover'}</button>
-                                    </div>
-                                    <div style={{ background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)', border: '1px solid rgba(212, 175, 55, 0.3)', borderRadius: '8px', padding: '20px', textAlign: 'center' }}>
-                                        <div style={{ fontSize: '36px', marginBottom: '10px' }}>📝</div>
-                                        <h3 style={{ color: '#D4AF37', fontSize: '14px', marginBottom: '5px', fontWeight: '500' }}>Plain Text</h3>
-                                        <p style={{ color: '#606060', fontSize: '10px', marginBottom: '12px', lineHeight: '1.4' }}>Simple text file for editing or backup.</p>
-                                        <button onClick={exportTXT} disabled={isExporting} style={{ width: '100%', padding: '10px', background: 'transparent', border: '1px solid rgba(212, 175, 55, 0.5)', borderRadius: '4px', color: '#D4AF37', fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', cursor: isExporting ? 'wait' : 'pointer', fontFamily: 'inherit' }}>⬇ Download TXT</button>
-                                    </div>
-                                </div>
-                                <div style={{ marginTop: '25px', padding: '15px', background: 'rgba(212, 175, 55, 0.05)', border: '1px solid rgba(212, 175, 55, 0.2)', borderRadius: '8px', maxWidth: '650px', margin: '25px auto 0' }}>
-                                    <h4 style={{ color: '#D4AF37', fontSize: '12px', marginBottom: '8px', letterSpacing: '1px' }}>💡 Tips</h4>
-                                    <ul style={{ color: '#707070', fontSize: '11px', lineHeight: '1.7', paddingLeft: '18px', margin: 0 }}>
-                                        <li>Fill in <strong>Title</strong> & <strong>Author</strong> for proper metadata</li>
-                                        <li>Upload a <strong>cover image</strong> or generate with AI</li>
-                                        <li>Upload your <strong>manuscript</strong> to include your content</li>
-                                        <li>Files download to your device's <strong>Downloads folder</strong></li>
-                                    </ul>
-                                </div>
-                            </div>
-                        )}
-                    </main>
-
-                    <footer style={{ padding: '20px', borderTop: '1px solid rgba(212, 175, 55, 0.1)', textAlign: 'center', marginTop: '25px' }}>
-                        <p style={{ fontSize: '9px', letterSpacing: '2px', color: '#303030', textTransform: 'uppercase' }}>Premium Ebook Studio • Real Export</p>
-                    </footer>
-                </div>
-            );
+      // Auto-save to localStorage (simple)
+      useEffect(()=>{
+        const data = {
+          ebookTitle, ebookSubtitle, ebookTagline, ebookAuthor, ebookImprint,
+          documentContent, fontSize, lineSpacing, pageSize, showPageNumbers, showHeader,
+          generatedCover, generatedImages, uploadedCoverImage, chapters
         };
+        try { localStorage.setItem('ebookStudioData', JSON.stringify(data)); } catch (e) {}
+      }, [ebookTitle, ebookSubtitle, ebookTagline, ebookAuthor, ebookImprint, documentContent, fontSize, lineSpacing, pageSize, showPageNumbers, showHeader, generatedCover, generatedImages, uploadedCoverImage, chapters]);
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<PremiumEbookStudio />);
-    </script>
+      // Load from localStorage on mount
+      useEffect(()=>{
+        try {
+          const raw = localStorage.getItem('ebookStudioData');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            setEbookTitle(parsed.ebookTitle || ''); setEbookSubtitle(parsed.ebookSubtitle || ''); setEbookTagline(parsed.ebookTagline || '');
+            setEbookAuthor(parsed.ebookAuthor || ''); setEbookImprint(parsed.ebookImprint || '');
+            setDocumentContent(parsed.documentContent || ''); setManuscriptContent(parsed.documentContent || '');
+            setFontSize(parsed.fontSize || '12'); setLineSpacing(parsed.lineSpacing || '1.6'); setPageSize(parsed.pageSize || '6x9');
+            setShowPageNumbers(parsed.showPageNumbers ?? true); setShowHeader(parsed.showHeader ?? true);
+            setGeneratedCover(parsed.generatedCover || null); setGeneratedImages(parsed.generatedImages || []);
+            setUploadedCoverImage(parsed.uploadedCoverImage || null);
+            setChapters(parsed.chapters || []);
+          }
+        } catch (e) { console.warn('Load fail', e); }
+      }, []);
+
+      // UI subcomponents
+      const TabButton = ({ id, label, icon }) => (
+        <button onClick={() => setActiveTab(id)} style={{
+          padding: '10px 14px', border: 'none', background: activeTab === id ? 'linear-gradient(135deg,#D4AF37 0%,#F4E5B2 50%)' : 'transparent',
+          color: activeTab === id ? '#0D0D0D' : '#808080', fontSize: 12, fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', cursor: 'pointer', borderRadius: activeTab===id?6:0
+        }}>
+          <span style={{ marginRight: 8 }}>{icon}</span>{label}
+        </button>
+      );
+
+      const BookCover = ({ size='large' }) => {
+        const coverImage = getCurrentCoverImage();
+        const isLarge = size === 'large';
+        const width = isLarge ? 260 : 160; const height = isLarge ? 390 : 240;
+        return (
+          <div style={{
+            width: width + 'px', height: height + 'px',
+            background: coverImage ? 'transparent' : 'linear-gradient(145deg,#252530 0%, #1a1a22 100%)',
+            borderRadius: 6, boxShadow: '18px 18px 60px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden', flexShrink: 0
+          }}>
+            {coverImage && (<img src={coverImage} alt="Cover" crossOrigin="anonymous" style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', objectFit:'cover', opacity: imageOpacity/100 }} />)}
+            <div style={{ position:'absolute', top:0, left:0, right:0, height:'6px', background:'linear-gradient(90deg,#D4AF37,#F4E5B2,#D4AF37)', zIndex:10 }} />
+            <div style={{ position:'absolute', top:0,left:0,right:0,bottom:0,zIndex:5,padding:isLarge?'20px 18px':'12px 10px', display:'flex', flexDirection:'column', justifyContent:'space-between', background: coverImage ? `linear-gradient(180deg, rgba(0,0,0,${overlayOpacity/100}) 0%, transparent 30%, transparent 70%, rgba(0,0,0,${Math.min(overlayOpacity/100 + 0.2,1)}) 100%)` : 'transparent' }}>
+              { (coverImage || ebookTitle) ? (
+                <>
+                  <div style={{ textAlign:'center', marginTop: isLarge?'30px':'12px' }}>
+                    <div style={{ fontSize: isLarge? '10px':'8px', letterSpacing:'2px', color:'#D4AF37', marginBottom:10, textTransform:'uppercase' }}>{coverStyle} Edition</div>
+                    <h3 style={{ fontSize: isLarge? '20px':'14px', fontWeight:400, color:'#fff', lineHeight:1.2, margin:0, fontFamily:"'Playfair Display', Georgia, serif" }}>{ebookTitle || 'Your Title'}</h3>
+                  </div>
+                  <div style={{ textAlign:'center' }}>
+                    <div style={{ width: '35px', height:'1px', background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)', margin:'0 auto 10px' }} />
+                    <p style={{ fontSize: isLarge? '12px':'9px', color:'#E0E0E0', margin:0, textTransform:'uppercase' }}>{ebookAuthor || 'Author Name'}</p>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', color:'#404050' }}>
+                  <div style={{ fontSize: isLarge? '38px':'24px', opacity:0.5 }}>📚</div>
+                  <p style={{ fontSize: '10px', textAlign: 'center' }}>Add image to preview</p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      };
+
+      // Render
+      return (
+        <div style={{ minHeight:'100vh', paddingBottom: 40 }}>
+          {/* Notification */}
+          { notification && (
+            <div style={{ position:'fixed', top:16, right:16, zIndex:9999, padding:'12px 18px', borderRadius:8, background: notification.type === 'error' ? 'linear-gradient(135deg,#8B0000,#5C0000)' : 'linear-gradient(135deg,#D4AF37,#AA8C2C)', color: notification.type==='error'? '#fff':'#0D0D0D', fontWeight:700, boxShadow:'0 8px 40px rgba(0,0,0,0.4)'}}>{notification.message}</div>
+          )}
+
+          {/* Export overlay */}
+          { isExporting && (
+            <div style={{ position:'fixed', left:0, right:0, top:0, bottom:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9998 }}>
+              <div style={{ background:'rgba(12,12,16,0.96)', border:'1px solid rgba(212,175,55,0.12)', padding:30, borderRadius:10, textAlign:'center', color:'#D4AF37' }}>
+                <div style={{ width:48, height:48, margin:'0 auto 12px', border:'3px solid rgba(212,175,55,0.25)', borderTop:'3px solid #D4AF37', borderRadius:'50%', animation:'spin 1s linear infinite' }} />
+                <div style={{ fontWeight:700, letterSpacing:1 }}>WORKING…</div>
+              </div>
+            </div>
+          )}
+
+          {/* Header */}
+          <header style={{ padding:'20px 18px', borderBottom:'1px solid rgba(212,175,55,0.08)', background:'rgba(10,10,15,0.85)' }}>
+            <div style={{ maxWidth:1200, margin:'0 auto', display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+              <div>
+                <h1 style={{ fontSize:'clamp(16px,3.2vw,22px)', margin:0, fontWeight:300, letterSpacing:4, textTransform:'uppercase', background:'linear-gradient(135deg,#D4AF37,#F4E5B2)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>Premium Ebook Studio</h1>
+                <div style={{ fontSize:10, color:'#808080', marginTop:4, textTransform:'uppercase' }}>Real PDF & EPUB Export</div>
+              </div>
+
+              <div style={{ display:'flex', gap:8 }}>
+                <button onClick={exportPDF} disabled={isExporting} style={{ ...primaryBtnStyle, fontSize:12 }}>📄 PDF</button>
+                <button onClick={exportEPUB} disabled={isExporting} style={{ ...secondaryBtnStyle, border:'1px solid rgba(212,175,55,0.22)' }}>📚 EPUB</button>
+              </div>
+            </div>
+          </header>
+
+          {/* Nav tabs */}
+          <nav style={{ display:'flex', justifyContent:'center', gap:6, padding:'12px 12px', borderBottom:'1px solid rgba(212,175,55,0.06)', background:'rgba(12,12,18,0.6)' }}>
+            <TabButton id="cover" label="Cover" icon="📖" />
+            <TabButton id="upload" label="Manuscript" icon="📤" />
+            <TabButton id="template" label="Templates" icon="✨" />
+            <TabButton id="preview" label="Preview" icon="👁" />
+            <TabButton id="export" label="Export" icon="💾" />
+          </nav>
+
+          <main style={{ maxWidth:1200, margin:'24px auto', padding:'0 16px' }}>
+
+            {/* MAIN LAYOUT */}
+            { activeTab === 'cover' && (
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))', gap:24 }}>
+                <div className="card">
+                  <h3 style={{ color:'#D4AF37', marginBottom:12 }}>📷 Upload Image</h3>
+                  <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageUpload} style={{ display:'none' }} />
+                  <div onClick={() => imageInputRef.current?.click()} style={{ cursor:'pointer', border:'2px dashed rgba(212,175,55,0.35)', padding:18, borderRadius:10, textAlign:'center' }}>
+                    <div style={{ fontSize:28 }}>🖼️</div>
+                    <p style={{ color:'#D4AF37', margin:'8px 0', fontWeight:700 }}>Click to upload</p>
+                    <p style={{ color:'#888' }}>JPG, PNG, GIF, WebP</p>
+                  </div>
+                  { uploadedCoverImage && (
+                    <div style={{ marginTop:12, padding:10, background:'rgba(212,175,55,0.06)', borderRadius:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <div style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'#D4AF37' }}>{uploadedCoverImage.name}</div>
+                      <button onClick={() => { setImageSource('upload'); showNotification('✓ Using uploaded image'); }} style={{ ...secondaryBtnStyle, fontSize:11 }}>{ imageSource === 'upload' ? '✓ Active' : 'Use' }</button>
+                    </div>
+                  )}
+
+                  <hr style={{ opacity:0.06, margin: '18px 0' }} />
+
+                  <div style={{ marginTop:8 }}>
+                    <h3 style={{ color:'#D4AF37' }}>🎬 AI Generate</h3>
+                    <div style={{ margin:'10px 0' }}>
+                      <label style={{ fontSize:11, color:'#888' }}>Style</label>
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginTop:8 }}>
+                        { coverStyles.map(s => (
+                          <button key={s.id} onClick={()=>setCoverStyle(s.id)} style={{ padding:8, borderRadius:6, border: coverStyle===s.id ? '1px solid rgba(212,175,55,0.6)' : '1px solid rgba(255,255,255,0.03)', background: coverStyle===s.id ? 'rgba(212,175,55,0.08)' : 'transparent', color:'#E8E8E8' }}>
+                            <div style={{ fontSize:16 }}>{s.icon}</div>
+                            <div style={{ fontSize:12 }}>{s.name}</div>
+                          </button>
+                        )) }
+                      </div>
+                    </div>
+
+                    <label style={{ fontSize:11, color:'#888' }}>Describe Cover</label>
+                    <textarea value={coverPrompt} onChange={(e)=>setCoverPrompt(e.target.value)} placeholder="e.g., Woman on cliff at sunset, dramatic clouds..." rows={2} style={{ width:'100%', padding:10, borderRadius:8, marginTop:8, background:'rgba(255,255,255,0.02)', color:'#E8E8E8', border:'1px solid rgba(255,255,255,0.03)' }} />
+                    <div style={{ display:'flex', gap:8, marginTop:8, flexWrap:'wrap' }}>
+                      { ['Sunset mountains','Forest path','Ocean night','City lights'].map(p=>(
+                        <button key={p} onClick={()=>setCoverPrompt(p)} style={{ padding:'6px 10px', borderRadius:999, border:'1px solid rgba(255,255,255,0.04)', background:'transparent', color:'#ccc' }}>{p}</button>
+                      )) }
+                    </div>
+                    <button onClick={generateCover} disabled={isGenerating || !coverPrompt.trim()} style={{ marginTop:12, width:'100%', ...primaryBtnStyle }}>{ isGenerating ? '⏳ Generating...' : '✦ Generate AI Cover' }</button>
+                  </div>
+
+                  <div style={{ marginTop:12 }}>
+                    <h3 style={{ color:'#D4AF37' }}>🎚 Controls</h3>
+                    <div style={{ marginTop:8 }}>
+                      <label style={{ fontSize:11, color:'#999' }}>Image Opacity <span style={{ float:'right', color:'#D4AF37' }}>{imageOpacity}%</span></label>
+                      <input type="range" min="0" max="100" value={imageOpacity} onChange={(e)=>setImageOpacity(Number(e.target.value))} style={{ width:'100%' }} />
+                    </div>
+                    <div style={{ marginTop:10 }}>
+                      <label style={{ fontSize:11, color:'#999' }}>Text Overlay <span style={{ float:'right', color:'#D4AF37' }}>{overlayOpacity}%</span></label>
+                      <input type="range" min="0" max="100" value={overlayOpacity} onChange={(e)=>setOverlayOpacity(Number(e.target.value))} style={{ width:'100%' }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
+                  <div className="card">
+                    <h3 style={{ color:'#D4AF37' }}>📝 Book Details</h3>
+                    <div style={{ display:'grid', gap:10 }}>
+                      <input type="text" value={ebookTitle} onChange={(e)=>setEbookTitle(e.target.value)} placeholder="Title" style={{ padding:10, borderRadius:8, border:'1px solid rgba(255,255,255,0.03)', background:'transparent', color:'#E8E8E8' }} />
+                      <input type="text" value={ebookSubtitle} onChange={(e)=>setEbookSubtitle(e.target.value)} placeholder="Subtitle (optional)" style={{ padding:10, borderRadius:8, border:'1px solid rgba(255,255,255,0.03)', background:'transparent', color:'#E8E8E8' }} />
+                      <input type="text" value={ebookAuthor} onChange={(e)=>setEbookAuthor(e.target.value)} placeholder="Author" style={{ padding:10, borderRadius:8, border:'1px solid rgba(255,255,255,0.03)', background:'transparent', color:'#E8E8E8' }} />
+                      <input type="text" value={ebookImprint} onChange={(e)=>setEbookImprint(e.target.value)} placeholder="Imprint / Publisher" style={{ padding:10, borderRadius:8, border:'1px solid rgba(255,255,255,0.03)', background:'transparent', color:'#E8E8E8' }} />
+                    </div>
+                  </div>
+
+                  <div className="card" style={{ alignItems:'center', display:'flex', flexDirection:'column', gap:12 }}>
+                    <h3 style={{ color:'#D4AF37', alignSelf:'flex-start' }}>👁 Preview</h3>
+                    <BookCover size="large" />
+                    <div style={{ marginTop:10, padding:'6px 12px', background:'rgba(212,175,55,0.08)', borderRadius:12, color:'#D4AF37' }}>{ imageSource === 'upload' ? '📷 Uploaded' : imageSource === 'ai' ? '🎬 AI Generated' : '📚 No Image' }</div>
+                    { getCurrentCoverImage() && <button onClick={downloadCoverImage} style={{ ...secondaryBtnStyle, marginTop:8 }}>⬇ Download Cover</button> }
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* UPLOAD TAB */}
+            { activeTab === 'upload' && (
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))', gap:24 }}>
+                {/* Left: Upload area */}
+                <div style={{ minWidth:320 }}>
+                  <div className="card">
+                    <h3 style={{ color:'#D4AF37' }}>📤 Upload Manuscript</h3>
+
+                    {/* Drag & drop area */}
+                    <div
+                      onDrop={(e)=>{ e.preventDefault(); e.stopPropagation(); setDragActive(false); const file = e.dataTransfer.files && e.dataTransfer.files[0]; if (file) handleFileUpload(file); }}
+                      onDragOver={(e)=>{ e.preventDefault(); e.stopPropagation(); setDragActive(true); }}
+                      onDragLeave={() => setDragActive(false)}
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{
+                        border: `2px dashed ${dragActive ? '#D4AF37' : 'rgba(212,175,55,0.3)'}`,
+                        background: dragActive ? 'rgba(212,175,55,0.12)' : 'rgba(212,175,55,0.04)',
+                        padding: 28,
+                        borderRadius: 12,
+                        textAlign:'center',
+                        cursor:'pointer'
+                      }}
+                    >
+                      <div style={{ fontSize:36 }}>{ dragActive ? '📥' : '📄' }</div>
+                      <div style={{ marginTop:8, color:'#D4AF37', fontWeight:700 }}>Click or drag file here</div>
+                      <div style={{ color:'#999', marginTop:6, fontSize:12 }}>TXT, DOC, DOCX, RTF, MD</div>
+                    </div>
+
+                    <input ref={fileInputRef} type="file" accept=".txt,.doc,.docx,.rtf,.md" onChange={handleFileUpload} style={{ display:'none' }} />
+
+                    { uploadedFile && uploadedDoc && (
+                      <div style={{ marginTop:12, padding:12, background:'rgba(212,175,55,0.06)', borderRadius:8 }}>
+                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                            <div style={{ fontSize:20 }}>{ fileIcons[getFileExtension(uploadedFile.name)] || fileIcons.default }</div>
+                            <div style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                              <div style={{ color:'#D4AF37', fontWeight:700 }}>{uploadedDoc.name || uploadedFile.name}</div>
+                              <div style={{ fontSize:12, color:'#888' }}>{uploadedDoc.size}</div>
+                            </div>
+                          </div>
+                          <button onClick={()=>showNotification('✓ Manuscript kept')} style={{ ...secondaryBtnStyle, fontSize:12 }}>✓ Uploaded</button>
+                        </div>
+
+                        {/* Stats */}
+                        <div style={{ marginTop:12, display:'flex', gap:10, flexWrap:'wrap' }}>
+                          <div style={{ padding:8, borderRadius:8, background:'#fff', color:'#222', minWidth:120 }}>
+                            <div style={{ fontSize:12, fontWeight:700 }}>Words</div>
+                            <div style={{ fontSize:14 }}>{ getStats(manuscriptContent).words.toLocaleString() }</div>
+                          </div>
+                          <div style={{ padding:8, borderRadius:8, background:'#fff', color:'#222', minWidth:120 }}>
+                            <div style={{ fontSize:12, fontWeight:700 }}>Chars</div>
+                            <div style={{ fontSize:14 }}>{ getStats(manuscriptContent).characters.toLocaleString() }</div>
+                          </div>
+                          <div style={{ padding:8, borderRadius:8, background:'#fff', color:'#222', minWidth:150 }}>
+                            <div style={{ fontSize:12, fontWeight:700 }}>Est. Read</div>
+                            <div style={{ fontSize:14 }}>{ getStats(manuscriptContent).readingTime } min</div>
+                          </div>
+                        </div>
+
+                        {/* Preview first 200 chars */}
+                        <div style={{ marginTop:12, padding:10, background:'rgba(0,0,0,0.03)', borderRadius:8 }}>
+                          <div style={{ fontSize:12, color:'#888', marginBottom:6, fontWeight:700 }}>Preview (first 200 chars)</div>
+                          <div style={{ color:'#ddd', fontSize:13, lineHeight:1.5, whiteSpace:'pre-wrap' }}>{ (manuscriptContent || '').slice(0,200) || '(no content)' }{ (manuscriptContent && manuscriptContent.length>200) ? '...' : '' }</div>
+                        </div>
+
+                        {/* Actions: Clean, convert, detect, TOC, grammar, AI */}
+                        <div style={{ marginTop:12, display:'flex', gap:8, flexWrap:'wrap' }}>
+                          <button onClick={()=>{
+                            const cleaned = cleanManuscript(manuscriptContent || '');
+                            setManuscriptContent(cleaned); setDocumentContent(cleaned);
+                            showNotification('✨ Manuscript cleaned & formatted');
+                          }} style={primaryBtnStyle}>✨ Clean & Format</button>
+
+                          <button onClick={()=>{
+                            const md = toMarkdown(manuscriptContent || '');
+                            setManuscriptContent(md); setDocumentContent(md);
+                            showNotification('📝 Converted to Markdown');
+                          }} style={secondaryBtnStyle}>📝 Convert → MD</button>
+
+                          <button onClick={()=>{
+                            const ch = detectChaptersFromText(manuscriptContent || '');
+                            setChapters(ch);
+                            showNotification(`🧭 Detected ${ch.length} section(s)`);
+                          }} style={secondaryBtnStyle}>🧭 Detect Chapters</button>
+
+                          <button onClick={()=>{
+                            const ch = chapters.length ? chapters : detectChaptersFromText(manuscriptContent||'');
+                            const toc = generateTOCFromChapters(ch);
+                            const newDoc = `Table of Contents\n\n${toc}\n\n${manuscriptContent||''}`;
+                            setManuscriptContent(newDoc); setDocumentContent(newDoc); showNotification('📚 TOC generated');
+                          }} style={secondaryBtnStyle}>📚 Generate TOC</button>
+
+                          <button onClick={()=>{
+                            const fixed = grammarQuickFix(manuscriptContent || '');
+                            setManuscriptContent(fixed); setDocumentContent(fixed); showNotification('✍️ Grammar quick-fix applied');
+                          }} style={secondaryBtnStyle}>✍️ Grammar Fix</button>
+
+                          <button onClick={async ()=>{
+                            if (!aiApiKey) { showNotification('Provide API key to use AI features', 'error'); return; }
+                            setIsExporting(true);
+                            try {
+                              const edited = await aiEditRequest({ inputText: manuscriptContent || '', apiKey: aiApiKey, mode: 'rewrite' });
+                              setManuscriptContent(edited); setDocumentContent(edited); showNotification('🤖 AI rewrite complete');
+                            } catch (err) { console.error(err); showNotification('AI rewrite failed', 'error'); } finally { setIsExporting(false); }
+                          }} style={ctaBtnStyle}>🤖 AI Rewrite</button>
+
+                          <button onClick={async ()=>{
+                            if (!aiApiKey) { showNotification('Provide API key to use AI features', 'error'); return; }
+                            setIsExporting(true);
+                            try {
+                              const suggested = await aiEditRequest({ inputText: manuscriptContent || '', apiKey: aiApiKey, mode: 'suggestTocs' });
+                              let parsed = [];
+                              try { parsed = JSON.parse(suggested); } catch(e){ parsed = []; }
+                              if (Array.isArray(parsed) && parsed.length) {
+                                const tocLines = parsed.map((x,i)=> `${i+1}. ${x.title} - ${x.description||''}`).join('\n');
+                                const newDoc = `Table of Contents\n\n${tocLines}\n\n${manuscriptContent}`;
+                                setManuscriptContent(newDoc); setDocumentContent(newDoc); showNotification('✨ AI editorial pass applied (TOC)');
+                              } else {
+                                setManuscriptContent(suggested); setDocumentContent(suggested); showNotification('✨ AI editorial pass applied');
+                              }
+                            } catch (err) {
+                              console.error(err); showNotification('AI editorial pass failed', 'error');
+                            } finally { setIsExporting(false); }
+                          }} style={{ ...ctaBtnStyle, background:'#B8860B' }}>🧠 Full AI Edit</button>
+                        </div>
+
+                        {/* API key */}
+                        <div style={{ marginTop:12, display:'flex', gap:8, alignItems:'center' }}>
+                          <input placeholder="AI API key (optional)" value={aiApiKey} onChange={(e)=>setAiApiKey(e.target.value)} style={{ flex:1, padding:8, borderRadius:8, border:'1px solid rgba(255,255,255,0.04)', background:'transparent', color:'#fff' }} />
+                          <div style={{ fontSize:13, color:'#999' }}>🔒</div>
+                        </div>
+
+                        {/* Export from upload */}
+                        <div style={{ marginTop:12, display:'flex', gap:8 }}>
+                          <button onClick={() => { const blob = new Blob([manuscriptContent || ''], { type:'text/plain' }); saveAs(blob, `${(ebookTitle||'manuscript').replace(/[^a-z0-9]/gi,'_')}.txt`); showNotification('✓ TXT exported'); }} style={secondaryBtnStyle}>⬇ Export TXT</button>
+                          <button onClick={() => { const md = toMarkdown(manuscriptContent||''); const blob = new Blob([md], { type:'text/markdown' }); saveAs(blob, `${(ebookTitle||'manuscript').replace(/[^a-z0-9]/gi,'_')}.md`); showNotification('✓ MD exported'); }} style={secondaryBtnStyle}>⬇ Export MD</button>
+                          <button onClick={() => setManuscriptPreviewOpen(p => !p)} style={secondaryBtnStyle}>{ manuscriptPreviewOpen ? 'Hide Preview' : 'Show Preview' }</button>
+                        </div>
+
+                        { manuscriptPreviewOpen && (
+                          <div style={{ marginTop:12, background:'#fff', color:'#222', padding:12, borderRadius:8, maxHeight:260, overflowY:'auto', border:'1px solid #eee' }}>
+                            <pre style={{ whiteSpace:'pre-wrap', fontFamily:'inherit', margin:0 }}>{ manuscriptContent || '(no content)' }</pre>
+                          </div>
+                        )}
+
+                      </div>
+                    ) }
+                  </div>
+                </div>
+
+                {/* Right: structure / chapters */}
+                <div>
+                  <div className="card">
+                    <h3 style={{ color:'#D4AF37' }}>📑 Structure</h3>
+                    { chapters && chapters.length > 0 ? (
+                      <>
+                        <div style={{ display:'flex', justifyContent:'space-between', marginBottom:12 }}>
+                          <div style={{ color:'#D4AF37' }}>{chapters.length} Section(s)</div>
+                          <div style={{ color:'#999' }}>{ chapters.reduce((a,c)=>a+c.wordCount,0).toLocaleString() } words</div>
+                        </div>
+                        <div style={{ maxHeight:300, overflowY:'auto', display:'grid', gap:8 }}>
+                          { chapters.map(ch => (
+                            <div key={ch.id} style={{ padding:10, borderRadius:8, background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.02)' }}>
+                              <div style={{ display:'flex', justifyContent:'space-between' }}>
+                                <div style={{ fontWeight:700 }}>{ch.title}</div>
+                                <div style={{ color:'#999' }}>{ ch.wordCount.toLocaleString() } words</div>
+                              </div>
+                              <div style={{ marginTop:8, color:'#ccc', fontSize:13, maxHeight:60, overflow:'hidden', whiteSpace:'pre-wrap' }}>{ ch.content.slice(0,240) }{ ch.content.length>240 ? '...' : '' }</div>
+                            </div>
+                          )) }
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ textAlign:'center', padding:28, color:'#888' }}>
+                        <div style={{ fontSize:40 }}>📑</div>
+                        <div style={{ marginTop:8 }}>Upload a manuscript to see structure</div>
+                      </div>
+                    ) }
+                  </div>
+
+                  <div className="card" style={{ marginTop:12 }}>
+                    <h3 style={{ color:'#D4AF37' }}>Presets</h3>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:10 }}>
+                      { presets.map(p => <button key={p.id} onClick={()=>setPreset(p)} style={primaryBtnStyle}>{p.name}</button>) }
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TEMPLATES TAB */}
+            { activeTab === 'template' && (
+              <div className="card">
+                <h3 style={{ color:'#D4AF37' }}>Select Template</h3>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:12, marginTop:12 }}>
+                  { templates.map(t => (
+                    <div key={t.id} onClick={()=> { /* setSelectedTemplate... */ showNotification(`✓ ${t.name} selected`) }} style={{ padding:12, borderRadius:8, background:'rgba(255,255,255,0.02)', cursor:'pointer' }}>
+                      <div style={{ width:40, height:58, background: t.gradient, borderRadius:6, marginBottom:8 }} />
+                      <div style={{ color:'#E8E8E8', fontWeight:700 }}>{t.name}</div>
+                      <div style={{ color:'#888', marginTop:6 }}>{t.desc}</div>
+                    </div>
+                  )) }
+                </div>
+              </div>
+            )}
+
+            {/* PREVIEW TAB */}
+            { activeTab === 'preview' && (
+              <div>
+                <div style={{ display:'flex', justifyContent:'center', marginBottom:18 }}>
+                  <div style={{ display:'flex', gap:6, background:'rgba(12,12,18,0.7)', padding:6, borderRadius:8 }}>
+                    { [{id:'cover',label:'Cover'},{id:'interior',label:'Interior'},{id:'fullbook',label:'Full Book'}].map(m=>(
+                      <button key={m.id} onClick={()=>setPreviewMode(m.id)} style={{ padding:'8px 12px', borderRadius:6, border:'none', background: previewMode===m.id ? 'linear-gradient(135deg,#D4AF37,#AA8C2C)' : 'transparent', color: previewMode===m.id ? '#111' : '#aaa' }}>{m.label}</button>
+                    )) }
+                  </div>
+                </div>
+
+                { previewMode === 'cover' && <div style={{ display:'flex', justifyContent:'center' }}><BookCover size="large" /></div> }
+                { previewMode === 'interior' && (
+                  <div style={{ display:'flex', justifyContent:'center' }}>
+                    <div style={{ maxWidth:560, background:'#FAF8F5', padding:28, borderRadius:8, color:'#222', fontFamily:'Georgia, serif' }}>
+                      <div style={{ textAlign:'center', color:'#888', marginBottom:18 }}>12</div>
+                      <p style={{ fontSize:14, lineHeight:1.8, textAlign:'justify' }}>
+                        <span style={{ float:'left', fontSize:44, color:'#D4AF37', paddingRight:8, fontFamily:"'Playfair Display',Georgia,serif" }}>T</span>
+                        The morning light filtered through the ancient windows, casting long shadows across the weathered floorboards. She stood there, breath held, knowing that the next few moments would change everything.
+                      </p>
+                      <p style={{ marginTop:12, fontSize:14 }}>Years of searching had led to this single moment. A lifetime of questions waiting to be answered.</p>
+                      <div style={{ textAlign:'center', marginTop:28, color:'#D4AF37' }}>❧</div>
+                    </div>
+                  </div>
+                ) }
+                { previewMode === 'fullbook' && (
+                  <div style={{ display:'flex', justifyContent:'center', gap:20 }}>
+                    <div style={{ textAlign:'center' }}><p style={{ color:'#888', fontSize:12 }}>Cover</p><BookCover size="small" /></div>
+                    <div>
+                      <p style={{ color:'#888', fontSize:12 }}>Interior</p>
+                      <div style={{ display:'flex', boxShadow:'0 12px 35px rgba(0,0,0,0.45)', borderRadius:6, overflow:'hidden' }}>
+                        <div style={{ width:140, height:200, background:'#FAF8F5', padding:12, borderRight:'1px solid #e5e0d8' }}>
+                          <p style={{ fontSize:8, color:'#888', textAlign:'center' }}>12</p>
+                          <p style={{ fontSize:9, color:'#2A2A2A' }}><strong>T</strong>he morning light filtered through. She stood there, breath held.</p>
+                        </div>
+                        <div style={{ width:140, height:200, background:'#FAF8F5', padding:12 }}>
+                          <p style={{ fontSize:9, color:'#2A2A2A' }}>Years of searching had led to this moment.</p>
+                          <div style={{ textAlign:'center', marginTop:18, color:'#D4AF37' }}>❧</div>
+                          <p style={{ fontSize:7, color:'#888', textAlign:'center', marginTop:24 }}>13</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) }
+              </div>
+            )}
+
+            {/* EXPORT TAB */}
+            { activeTab === 'export' && (
+              <div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12 }}>
+                  <div className="card" style={{ textAlign:'center' }}>
+                    <div style={{ fontSize:36 }}>📄</div>
+                    <h3 style={{ color:'#D4AF37' }}>PDF Format</h3>
+                    <p style={{ color:'#999' }}>Print-ready with cover, title page & content</p>
+                    <button onClick={exportPDF} style={{ marginTop:12, ...primaryBtnStyle }}>⬇ Download PDF</button>
+                  </div>
+
+                  <div className="card" style={{ textAlign:'center' }}>
+                    <div style={{ fontSize:36 }}>📚</div>
+                    <h3 style={{ color:'#D4AF37' }}>EPUB Format</h3>
+                    <p style={{ color:'#999' }}>For Kindle, Apple Books, Kobo</p>
+                    <button onClick={exportEPUB} style={{ marginTop:12, ...primaryBtnStyle }}>⬇ Download EPUB</button>
+                  </div>
+
+                  <div className="card" style={{ textAlign:'center' }}>
+                    <div style={{ fontSize:36 }}>🖼️</div>
+                    <h3 style={{ color:'#D4AF37' }}>Cover Image</h3>
+                    <p style={{ color:'#999' }}>High-res cover for publishing platforms</p>
+                    <button onClick={downloadCoverImage} disabled={!getCurrentCoverImage()} style={{ marginTop:12, ...(getCurrentCoverImage() ? primaryBtnStyle : { ...secondaryBtnStyle, cursor:'not-allowed', opacity:0.6 }) }}>{ getCurrentCoverImage() ? '⬇ Download Cover' : 'No Cover' }</button>
+                  </div>
+
+                  <div className="card" style={{ textAlign:'center' }}>
+                    <div style={{ fontSize:36 }}>📝</div>
+                    <h3 style={{ color:'#D4AF37' }}>Plain Text</h3>
+                    <p style={{ color:'#999' }}>Simple text file for editing or backup</p>
+                    <button onClick={exportTXT} style={{ marginTop:12, ...secondaryBtnStyle }}>⬇ Download TXT</button>
+                  </div>
+                </div>
+
+                <div style={{ marginTop:18, padding:12, background:'rgba(212,175,55,0.04)', borderRadius:8 }}>
+                  <h4 style={{ color:'#D4AF37' }}>💡 Tips</h4>
+                  <ul style={{ color:'#bbb', marginTop:8 }}>
+                    <li>Fill Title & Author for proper metadata</li>
+                    <li>Upload a cover image or generate with AI</li>
+                    <li>Upload your manuscript to include your content</li>
+                    <li>Files download to your device's Downloads folder</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+
+          </main>
+
+          <footer style={{ textAlign:'center', padding:20, borderTop:'1px solid rgba(212,175,55,0.04)', color:'#303030' }}>
+            <small>Premium Ebook Studio • Real Export</small>
+          </footer>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<PremiumEbookStudio />);
+
+  </script>
 </body>
 </html>
