@@ -48,30 +48,17 @@
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
         }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
     
     <script type="text/babel">
-        const { useState, useCallback, useEffect } = React;
-
-        // Simulated AI Image Generation with realistic delay and placeholder
-        const generateAIImage = async (prompt, style) => {
-            // Simulate API call delay
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            
-            // Generate a unique seed based on prompt for consistent "random" results
-            const seed = prompt.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-            
-            // Return placeholder image URL (using picsum for demo - replace with actual AI API)
-            return {
-                url: `https://picsum.photos/seed/${seed}/600/900`,
-                prompt: prompt,
-                style: style,
-                timestamp: new Date().toISOString()
-            };
-        };
+        const { useState, useCallback, useRef } = React;
 
         const PremiumEbookStudio = () => {
             const [activeTab, setActiveTab] = useState('cover');
@@ -85,8 +72,17 @@
             const [chapters, setChapters] = useState([]);
             const [coverStyle, setCoverStyle] = useState('cinematic');
             const [generatedImages, setGeneratedImages] = useState([]);
-            const [previewMode, setPreviewMode] = useState('full');
+            const [previewMode, setPreviewMode] = useState('fullbook');
             const [notification, setNotification] = useState(null);
+            
+            // NEW: Image upload and transparency
+            const [uploadedCoverImage, setUploadedCoverImage] = useState(null);
+            const [imageOpacity, setImageOpacity] = useState(100);
+            const [overlayOpacity, setOverlayOpacity] = useState(50);
+            const [imageSource, setImageSource] = useState('none'); // 'none', 'upload', 'ai'
+            
+            const fileInputRef = useRef(null);
+            const imageInputRef = useRef(null);
 
             const templates = [
                 { id: 'luxury', name: 'Luxury Edition', desc: 'Gold accents, elegant serif typography', color: '#D4AF37', gradient: 'linear-gradient(135deg, #D4AF37 0%, #F4E5B2 50%, #D4AF37 100%)' },
@@ -111,6 +107,7 @@
                 setTimeout(() => setNotification(null), 3000);
             };
 
+            // Handle document upload
             const handleFileUpload = useCallback((e) => {
                 const file = e.target.files[0];
                 if (file) {
@@ -130,7 +127,7 @@
                         let currentChapter = null;
                         let wordCount = 0;
                         
-                        lines.forEach((line, idx) => {
+                        lines.forEach((line) => {
                             const chapterMatch = line.match(/^(Chapter|CHAPTER|Part|PART)\s*(\d+|[IVXLC]+)/i);
                             if (chapterMatch || line.match(/^#{1,2}\s+/)) {
                                 if (currentChapter) {
@@ -154,7 +151,6 @@
                         }
                         
                         if (detectedChapters.length === 0) {
-                            // If no chapters detected, create one
                             const totalWords = content.split(/\s+/).filter(w => w.length > 0).length;
                             detectedChapters.push({
                                 id: 1,
@@ -170,6 +166,32 @@
                 }
             }, []);
 
+            // NEW: Handle cover image upload
+            const handleImageUpload = useCallback((e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    // Check if it's an image
+                    if (!file.type.startsWith('image/')) {
+                        showNotification('Please upload an image file (JPG, PNG, GIF, WebP, etc.)', 'error');
+                        return;
+                    }
+                    
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        setUploadedCoverImage({
+                            url: event.target.result,
+                            name: file.name,
+                            type: file.type,
+                            size: (file.size / 1024).toFixed(2) + ' KB'
+                        });
+                        setImageSource('upload');
+                        showNotification(`Image uploaded: ${file.name}`);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }, []);
+
+            // Generate AI Cover
             const generateCover = async () => {
                 if (!coverPrompt) {
                     showNotification('Please enter a cover description', 'error');
@@ -182,20 +204,32 @@
                     // Build enhanced prompt based on style
                     const styleEnhancements = {
                         cinematic: 'cinematic lighting, movie poster quality, dramatic atmosphere, 8k resolution',
-                        photorealistic: 'ultra realistic photograph, professional photography, sharp details, natural lighting',
+                        photorealistic: 'ultra realistic photograph, professional photography, sharp details',
                         artistic: 'digital painting, artistic illustration, vibrant colors, brushstroke texture',
                         minimalist: 'minimalist design, clean composition, negative space, elegant simplicity',
                         vintage: 'vintage aesthetic, aged texture, sepia tones, classic style, retro feel',
-                        fantasy: 'fantasy art, magical atmosphere, ethereal glow, mystical elements, dreamlike'
+                        fantasy: 'fantasy art, magical atmosphere, ethereal glow, mystical elements'
                     };
                     
                     const enhancedPrompt = `${coverPrompt}, ${styleEnhancements[coverStyle]}, book cover design`;
                     
-                    const result = await generateAIImage(enhancedPrompt, coverStyle);
+                    // Simulate AI generation with delay
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    
+                    // Generate unique seed from prompt
+                    const seed = enhancedPrompt.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                    
+                    const result = {
+                        url: `https://picsum.photos/seed/${seed}/600/900`,
+                        prompt: coverPrompt,
+                        style: coverStyle,
+                        timestamp: new Date().toISOString()
+                    };
                     
                     setGeneratedCover(result);
                     setGeneratedImages(prev => [...prev, result]);
-                    showNotification('Cover generated successfully!');
+                    setImageSource('ai');
+                    showNotification('AI Cover generated successfully!');
                 } catch (error) {
                     showNotification('Error generating cover. Please try again.', 'error');
                 } finally {
@@ -203,9 +237,18 @@
                 }
             };
 
+            // Get current cover image URL
+            const getCurrentCoverImage = () => {
+                if (imageSource === 'upload' && uploadedCoverImage) {
+                    return uploadedCoverImage.url;
+                } else if (imageSource === 'ai' && generatedCover) {
+                    return generatedCover.url;
+                }
+                return null;
+            };
+
             const exportEbook = (format) => {
                 showNotification(`Preparing ${format.toUpperCase()} export...`);
-                // In production, this would generate actual files
                 setTimeout(() => {
                     showNotification(`${format.toUpperCase()} ready for download!`);
                 }, 2000);
@@ -215,36 +258,162 @@
                 <button
                     onClick={() => setActiveTab(id)}
                     style={{
-                        padding: '16px 32px',
+                        padding: '16px 24px',
                         border: 'none',
                         background: activeTab === id ? 'linear-gradient(135deg, #D4AF37 0%, #F4E5B2 50%, #D4AF37 100%)' : 'transparent',
                         color: activeTab === id ? '#0D0D0D' : '#A0A0A0',
-                        fontSize: '14px',
+                        fontSize: '13px',
                         fontWeight: '600',
                         letterSpacing: '2px',
                         textTransform: 'uppercase',
                         cursor: 'pointer',
                         transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                         fontFamily: "'Cormorant Garamond', Georgia, serif",
-                        position: 'relative',
-                        overflow: 'hidden',
                         borderRadius: activeTab === id ? '4px' : '0',
-                    }}
-                    onMouseEnter={(e) => {
-                        if (activeTab !== id) {
-                            e.target.style.color = '#D4AF37';
-                        }
-                    }}
-                    onMouseLeave={(e) => {
-                        if (activeTab !== id) {
-                            e.target.style.color = '#A0A0A0';
-                        }
                     }}
                 >
                     <span style={{ marginRight: '8px' }}>{icon}</span>
                     {label}
                 </button>
             );
+
+            // Book Cover Component
+            const BookCover = ({ size = 'large' }) => {
+                const coverImage = getCurrentCoverImage();
+                const isLarge = size === 'large';
+                const width = isLarge ? 280 : 200;
+                const height = isLarge ? 420 : 300;
+                
+                return (
+                    <div style={{
+                        width: `${width}px`,
+                        height: `${height}px`,
+                        background: coverImage 
+                            ? 'transparent'
+                            : 'linear-gradient(145deg, #252530 0%, #1a1a22 100%)',
+                        borderRadius: '4px',
+                        boxShadow: '20px 20px 60px rgba(0,0,0,0.5), -5px -5px 20px rgba(212, 175, 55, 0.05)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                    }}>
+                        {/* Cover Image */}
+                        {coverImage && (
+                            <img 
+                                src={coverImage}
+                                alt="Cover"
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'cover',
+                                    opacity: imageOpacity / 100,
+                                }}
+                            />
+                        )}
+                        
+                        {/* Top Gold Bar */}
+                        <div style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: '6px',
+                            background: 'linear-gradient(90deg, #D4AF37, #F4E5B2, #D4AF37)',
+                            zIndex: 10,
+                        }} />
+                        
+                        {/* Text Overlay */}
+                        <div style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: coverImage 
+                                ? `linear-gradient(180deg, rgba(0,0,0,${overlayOpacity/100}) 0%, transparent 30%, transparent 70%, rgba(0,0,0,${overlayOpacity/100 + 0.2}) 100%)`
+                                : 'transparent',
+                            padding: isLarge ? '30px 25px' : '20px 15px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            zIndex: 5,
+                        }}>
+                            {coverImage || ebookTitle ? (
+                                <>
+                                    <div style={{ textAlign: 'center', marginTop: isLarge ? '40px' : '25px' }}>
+                                        <div style={{
+                                            fontSize: isLarge ? '11px' : '9px',
+                                            letterSpacing: '3px',
+                                            color: '#D4AF37',
+                                            marginBottom: '15px',
+                                            textTransform: 'uppercase',
+                                            textShadow: '0 2px 10px rgba(0,0,0,0.8)',
+                                        }}>
+                                            {coverStyle} Edition
+                                        </div>
+                                        <h3 style={{
+                                            fontSize: isLarge ? '24px' : '18px',
+                                            fontWeight: '400',
+                                            color: '#FFFFFF',
+                                            lineHeight: '1.3',
+                                            margin: 0,
+                                            textShadow: '0 2px 20px rgba(0,0,0,0.9)',
+                                        }}>
+                                            {ebookTitle || 'Your Title'}
+                                        </h3>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{
+                                            width: '50px',
+                                            height: '1px',
+                                            background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)',
+                                            margin: '0 auto 15px',
+                                        }} />
+                                        <p style={{
+                                            fontSize: isLarge ? '14px' : '11px',
+                                            letterSpacing: '2px',
+                                            color: '#E0E0E0',
+                                            margin: 0,
+                                            textTransform: 'uppercase',
+                                            textShadow: '0 2px 10px rgba(0,0,0,0.8)',
+                                        }}>
+                                            {ebookAuthor || 'Author Name'}
+                                        </p>
+                                    </div>
+                                </>
+                            ) : (
+                                <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    height: '100%',
+                                    color: '#505060',
+                                }}>
+                                    <div style={{ 
+                                        fontSize: isLarge ? '48px' : '32px', 
+                                        marginBottom: '20px', 
+                                        opacity: 0.5,
+                                        animation: 'float 3s ease-in-out infinite',
+                                    }}>
+                                        📚
+                                    </div>
+                                    <p style={{
+                                        fontSize: '12px',
+                                        letterSpacing: '2px',
+                                        textTransform: 'uppercase',
+                                        textAlign: 'center',
+                                    }}>
+                                        Add an image<br />to see preview
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            };
 
             return (
                 <div style={{
@@ -277,20 +446,9 @@
                         </div>
                     )}
 
-                    {/* Ambient Background Effects */}
-                    <div style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        background: 'radial-gradient(ellipse at 20% 20%, rgba(212, 175, 55, 0.03) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(212, 175, 55, 0.02) 0%, transparent 50%)',
-                        pointerEvents: 'none',
-                    }} />
-
                     {/* Header */}
                     <header style={{
-                        padding: '40px 60px',
+                        padding: '30px 20px',
                         borderBottom: '1px solid rgba(212, 175, 55, 0.15)',
                         background: 'rgba(10, 10, 15, 0.8)',
                         backdropFilter: 'blur(20px)',
@@ -308,9 +466,9 @@
                         }}>
                             <div>
                                 <h1 style={{
-                                    fontSize: 'clamp(24px, 4vw, 32px)',
+                                    fontSize: 'clamp(20px, 4vw, 28px)',
                                     fontWeight: '300',
-                                    letterSpacing: '8px',
+                                    letterSpacing: '6px',
                                     textTransform: 'uppercase',
                                     background: 'linear-gradient(135deg, #D4AF37 0%, #F4E5B2 40%, #D4AF37 80%, #AA8C2C 100%)',
                                     WebkitBackgroundClip: 'text',
@@ -321,70 +479,32 @@
                                     Premium Ebook Studio
                                 </h1>
                                 <p style={{
-                                    fontSize: '12px',
-                                    letterSpacing: '4px',
+                                    fontSize: '11px',
+                                    letterSpacing: '3px',
                                     color: '#707070',
-                                    marginTop: '8px',
+                                    marginTop: '6px',
                                     textTransform: 'uppercase',
                                 }}>
-                                    AI-Powered Covers • Premium Templates • Professional Publishing
+                                    AI Covers • Image Upload • Premium Templates
                                 </p>
                             </div>
-                            <div style={{
-                                display: 'flex',
-                                gap: '12px',
-                                flexWrap: 'wrap',
-                            }}>
-                                <button 
-                                    onClick={() => showNotification('Project saved!')}
-                                    style={{
-                                        padding: '14px 28px',
-                                        background: 'transparent',
-                                        border: '1px solid rgba(212, 175, 55, 0.4)',
-                                        color: '#D4AF37',
-                                        fontSize: '12px',
-                                        letterSpacing: '2px',
-                                        textTransform: 'uppercase',
-                                        cursor: 'pointer',
-                                        fontFamily: 'inherit',
-                                        transition: 'all 0.3s ease',
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.target.style.background = 'rgba(212, 175, 55, 0.1)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.target.style.background = 'transparent';
-                                    }}
-                                >
-                                    Save Project
-                                </button>
-                                <button 
-                                    onClick={() => exportEbook('pdf')}
-                                    style={{
-                                        padding: '14px 28px',
-                                        background: 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)',
-                                        border: 'none',
-                                        color: '#0D0D0D',
-                                        fontSize: '12px',
-                                        letterSpacing: '2px',
-                                        textTransform: 'uppercase',
-                                        cursor: 'pointer',
-                                        fontFamily: 'inherit',
-                                        fontWeight: '600',
-                                        transition: 'all 0.3s ease',
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.target.style.transform = 'translateY(-2px)';
-                                        e.target.style.boxShadow = '0 10px 30px rgba(212, 175, 55, 0.3)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.target.style.transform = 'translateY(0)';
-                                        e.target.style.boxShadow = 'none';
-                                    }}
-                                >
-                                    Export Ebook
-                                </button>
-                            </div>
+                            <button 
+                                onClick={() => exportEbook('pdf')}
+                                style={{
+                                    padding: '14px 28px',
+                                    background: 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)',
+                                    border: 'none',
+                                    color: '#0D0D0D',
+                                    fontSize: '12px',
+                                    letterSpacing: '2px',
+                                    textTransform: 'uppercase',
+                                    cursor: 'pointer',
+                                    fontFamily: 'inherit',
+                                    fontWeight: '600',
+                                }}
+                            >
+                                Export Ebook
+                            </button>
                         </div>
                     </header>
 
@@ -393,7 +513,7 @@
                         display: 'flex',
                         justifyContent: 'center',
                         gap: '4px',
-                        padding: '30px 20px',
+                        padding: '20px 10px',
                         background: 'rgba(15, 15, 20, 0.6)',
                         borderBottom: '1px solid rgba(212, 175, 55, 0.1)',
                         flexWrap: 'wrap',
@@ -401,7 +521,6 @@
                         <TabButton id="cover" label="Cover Design" icon="📖" />
                         <TabButton id="upload" label="Upload Draft" icon="📤" />
                         <TabButton id="template" label="Templates" icon="✨" />
-                        <TabButton id="format" label="Format & Style" icon="🎨" />
                         <TabButton id="preview" label="Preview" icon="👁" />
                     </nav>
 
@@ -409,622 +528,570 @@
                     <main style={{
                         maxWidth: '1400px',
                         margin: '0 auto',
-                        padding: '50px 20px',
+                        padding: '40px 20px',
                     }}>
                         
-                        {/* Cover Design Tab */}
+                        {/* ==================== COVER DESIGN TAB ==================== */}
                         {activeTab === 'cover' && (
                             <div style={{ animation: 'fadeIn 0.5s ease' }}>
                                 <div style={{
                                     display: 'grid',
-                                    gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-                                    gap: '50px',
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+                                    gap: '40px',
                                 }}>
-                                    {/* Cover Generator Panel */}
-                                    <div style={{
-                                        background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
-                                        border: '1px solid rgba(212, 175, 55, 0.2)',
-                                        borderRadius: '4px',
-                                        padding: '40px',
-                                    }}>
-                                        <h2 style={{
-                                            fontSize: '20px',
-                                            letterSpacing: '4px',
-                                            textTransform: 'uppercase',
-                                            color: '#D4AF37',
-                                            marginBottom: '30px',
-                                            fontWeight: '400',
+                                    
+                                    {/* LEFT COLUMN - Image Options */}
+                                    <div>
+                                        {/* UPLOAD YOUR OWN IMAGE */}
+                                        <div style={{
+                                            background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
+                                            border: '2px solid rgba(212, 175, 55, 0.3)',
+                                            borderRadius: '8px',
+                                            padding: '30px',
+                                            marginBottom: '25px',
                                         }}>
-                                            🎬 AI Cover Generator
-                                        </h2>
-
-                                        {/* Cover Style Selection */}
-                                        <div style={{ marginBottom: '30px' }}>
-                                            <label style={{
-                                                display: 'block',
-                                                fontSize: '11px',
-                                                letterSpacing: '2px',
-                                                textTransform: 'uppercase',
-                                                color: '#808080',
-                                                marginBottom: '12px',
-                                            }}>
-                                                Cover Style
-                                            </label>
-                                            <div style={{
-                                                display: 'grid',
-                                                gridTemplateColumns: 'repeat(3, 1fr)',
-                                                gap: '10px',
-                                            }}>
-                                                {coverStyles.map(style => (
-                                                    <button
-                                                        key={style.id}
-                                                        onClick={() => setCoverStyle(style.id)}
-                                                        style={{
-                                                            padding: '16px 12px',
-                                                            background: coverStyle === style.id 
-                                                                ? 'linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0.1) 100%)'
-                                                                : 'rgba(30, 30, 40, 0.5)',
-                                                            border: coverStyle === style.id 
-                                                                ? '1px solid rgba(212, 175, 55, 0.5)'
-                                                                : '1px solid rgba(80, 80, 100, 0.3)',
-                                                            borderRadius: '4px',
-                                                            color: coverStyle === style.id ? '#D4AF37' : '#909090',
-                                                            fontSize: '12px',
-                                                            cursor: 'pointer',
-                                                            fontFamily: 'inherit',
-                                                            textAlign: 'center',
-                                                            transition: 'all 0.3s ease',
-                                                        }}
-                                                    >
-                                                        <div style={{ fontSize: '20px', marginBottom: '6px' }}>{style.icon}</div>
-                                                        {style.name}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                            <p style={{
-                                                fontSize: '12px',
-                                                color: '#606060',
-                                                marginTop: '10px',
-                                                fontStyle: 'italic',
-                                            }}>
-                                                {coverStyles.find(s => s.id === coverStyle)?.desc}
-                                            </p>
-                                        </div>
-
-                                        {/* Book Details */}
-                                        <div style={{ marginBottom: '25px' }}>
-                                            <label style={{
-                                                display: 'block',
-                                                fontSize: '11px',
-                                                letterSpacing: '2px',
-                                                textTransform: 'uppercase',
-                                                color: '#808080',
-                                                marginBottom: '10px',
-                                            }}>
-                                                Book Title
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={ebookTitle}
-                                                onChange={(e) => setEbookTitle(e.target.value)}
-                                                placeholder="Enter your book title..."
-                                                style={{
-                                                    width: '100%',
-                                                    padding: '16px 20px',
-                                                    background: 'rgba(20, 20, 30, 0.8)',
-                                                    border: '1px solid rgba(100, 100, 120, 0.3)',
-                                                    borderRadius: '4px',
-                                                    color: '#E8E8E8',
-                                                    fontSize: '16px',
-                                                    fontFamily: 'inherit',
-                                                    outline: 'none',
-                                                    boxSizing: 'border-box',
-                                                }}
-                                                onFocus={(e) => e.target.style.borderColor = 'rgba(212, 175, 55, 0.5)'}
-                                                onBlur={(e) => e.target.style.borderColor = 'rgba(100, 100, 120, 0.3)'}
-                                            />
-                                        </div>
-
-                                        <div style={{ marginBottom: '25px' }}>
-                                            <label style={{
-                                                display: 'block',
-                                                fontSize: '11px',
-                                                letterSpacing: '2px',
-                                                textTransform: 'uppercase',
-                                                color: '#808080',
-                                                marginBottom: '10px',
-                                            }}>
-                                                Author Name
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={ebookAuthor}
-                                                onChange={(e) => setEbookAuthor(e.target.value)}
-                                                placeholder="Author name..."
-                                                style={{
-                                                    width: '100%',
-                                                    padding: '16px 20px',
-                                                    background: 'rgba(20, 20, 30, 0.8)',
-                                                    border: '1px solid rgba(100, 100, 120, 0.3)',
-                                                    borderRadius: '4px',
-                                                    color: '#E8E8E8',
-                                                    fontSize: '16px',
-                                                    fontFamily: 'inherit',
-                                                    outline: 'none',
-                                                    boxSizing: 'border-box',
-                                                }}
-                                                onFocus={(e) => e.target.style.borderColor = 'rgba(212, 175, 55, 0.5)'}
-                                                onBlur={(e) => e.target.style.borderColor = 'rgba(100, 100, 120, 0.3)'}
-                                            />
-                                        </div>
-
-                                        {/* Image Prompt */}
-                                        <div style={{ marginBottom: '25px' }}>
-                                            <label style={{
-                                                display: 'block',
-                                                fontSize: '11px',
-                                                letterSpacing: '2px',
-                                                textTransform: 'uppercase',
-                                                color: '#808080',
-                                                marginBottom: '10px',
-                                            }}>
-                                                Cover Image Description
-                                            </label>
-                                            <textarea
-                                                value={coverPrompt}
-                                                onChange={(e) => setCoverPrompt(e.target.value)}
-                                                placeholder="Describe your ideal cover image... e.g., 'A mysterious woman silhouetted against a golden sunset, standing at the edge of a cliff overlooking a vast ocean, dramatic clouds'"
-                                                rows={4}
-                                                style={{
-                                                    width: '100%',
-                                                    padding: '16px 20px',
-                                                    background: 'rgba(20, 20, 30, 0.8)',
-                                                    border: '1px solid rgba(100, 100, 120, 0.3)',
-                                                    borderRadius: '4px',
-                                                    color: '#E8E8E8',
-                                                    fontSize: '15px',
-                                                    fontFamily: 'inherit',
-                                                    outline: 'none',
-                                                    resize: 'vertical',
-                                                    lineHeight: '1.6',
-                                                    boxSizing: 'border-box',
-                                                }}
-                                                onFocus={(e) => e.target.style.borderColor = 'rgba(212, 175, 55, 0.5)'}
-                                                onBlur={(e) => e.target.style.borderColor = 'rgba(100, 100, 120, 0.3)'}
-                                            />
-                                        </div>
-
-                                        <button
-                                            onClick={generateCover}
-                                            disabled={isGenerating}
-                                            style={{
-                                                width: '100%',
-                                                padding: '18px',
-                                                background: isGenerating 
-                                                    ? 'linear-gradient(90deg, #555 0%, #666 50%, #555 100%)'
-                                                    : 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)',
-                                                backgroundSize: isGenerating ? '200% 100%' : '100% 100%',
-                                                animation: isGenerating ? 'shimmer 1.5s infinite' : 'none',
-                                                border: 'none',
-                                                borderRadius: '4px',
-                                                color: '#0D0D0D',
-                                                fontSize: '14px',
+                                            <h2 style={{
+                                                fontSize: '18px',
                                                 letterSpacing: '3px',
                                                 textTransform: 'uppercase',
-                                                cursor: isGenerating ? 'wait' : 'pointer',
-                                                fontFamily: 'inherit',
-                                                fontWeight: '600',
-                                                transition: 'all 0.3s ease',
-                                            }}
-                                        >
-                                            {isGenerating ? '◐ Generating AI Cover...' : '✦ Generate Cover Image'}
-                                        </button>
-
-                                        {/* Quick Prompts */}
-                                        <div style={{ marginTop: '25px' }}>
-                                            <p style={{
-                                                fontSize: '11px',
-                                                letterSpacing: '2px',
-                                                textTransform: 'uppercase',
-                                                color: '#606060',
-                                                marginBottom: '10px',
+                                                color: '#D4AF37',
+                                                marginBottom: '20px',
+                                                fontWeight: '400',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '10px',
                                             }}>
-                                                Quick Prompts:
-                                            </p>
-                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                                {[
-                                                    'Sunset over mountains',
-                                                    'Mysterious forest path',
-                                                    'Ocean waves at night',
-                                                    'City skyline',
-                                                    'Romantic garden',
-                                                ].map(prompt => (
+                                                📷 Upload Your Image
+                                            </h2>
+                                            
+                                            <input
+                                                ref={imageInputRef}
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleImageUpload}
+                                                style={{ display: 'none' }}
+                                            />
+                                            
+                                            <div 
+                                                onClick={() => imageInputRef.current?.click()}
+                                                style={{
+                                                    border: '2px dashed rgba(212, 175, 55, 0.4)',
+                                                    borderRadius: '8px',
+                                                    padding: '30px 20px',
+                                                    textAlign: 'center',
+                                                    cursor: 'pointer',
+                                                    background: 'rgba(212, 175, 55, 0.03)',
+                                                    transition: 'all 0.3s ease',
+                                                }}
+                                            >
+                                                <div style={{ fontSize: '36px', marginBottom: '10px' }}>🖼️</div>
+                                                <p style={{ color: '#D4AF37', fontSize: '14px', marginBottom: '5px' }}>
+                                                    Click to upload image
+                                                </p>
+                                                <p style={{ color: '#606060', fontSize: '11px' }}>
+                                                    JPG, PNG, GIF, WebP, SVG, BMP, TIFF
+                                                </p>
+                                            </div>
+                                            
+                                            {uploadedCoverImage && (
+                                                <div style={{
+                                                    marginTop: '15px',
+                                                    padding: '12px',
+                                                    background: 'rgba(212, 175, 55, 0.1)',
+                                                    borderRadius: '4px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                }}>
+                                                    <div>
+                                                        <p style={{ color: '#D4AF37', fontSize: '13px', margin: 0 }}>
+                                                            ✓ {uploadedCoverImage.name}
+                                                        </p>
+                                                        <p style={{ color: '#707070', fontSize: '11px', margin: '3px 0 0 0' }}>
+                                                            {uploadedCoverImage.size}
+                                                        </p>
+                                                    </div>
                                                     <button
-                                                        key={prompt}
-                                                        onClick={() => setCoverPrompt(prompt)}
+                                                        onClick={() => {
+                                                            setImageSource('upload');
+                                                            showNotification('Using uploaded image');
+                                                        }}
                                                         style={{
-                                                            padding: '8px 12px',
-                                                            background: 'rgba(30, 30, 40, 0.6)',
-                                                            border: '1px solid rgba(80, 80, 100, 0.3)',
-                                                            borderRadius: '20px',
-                                                            color: '#909090',
-                                                            fontSize: '11px',
+                                                            padding: '8px 16px',
+                                                            background: imageSource === 'upload' 
+                                                                ? 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)'
+                                                                : 'transparent',
+                                                            border: '1px solid rgba(212, 175, 55, 0.5)',
+                                                            borderRadius: '4px',
+                                                            color: imageSource === 'upload' ? '#0D0D0D' : '#D4AF37',
+                                                            fontSize: '10px',
+                                                            letterSpacing: '1px',
+                                                            textTransform: 'uppercase',
                                                             cursor: 'pointer',
                                                             fontFamily: 'inherit',
-                                                            transition: 'all 0.2s ease',
-                                                        }}
-                                                        onMouseEnter={(e) => {
-                                                            e.target.style.borderColor = 'rgba(212, 175, 55, 0.4)';
-                                                            e.target.style.color = '#D4AF37';
-                                                        }}
-                                                        onMouseLeave={(e) => {
-                                                            e.target.style.borderColor = 'rgba(80, 80, 100, 0.3)';
-                                                            e.target.style.color = '#909090';
                                                         }}
                                                     >
-                                                        {prompt}
+                                                        {imageSource === 'upload' ? '✓ Using' : 'Use This'}
                                                     </button>
-                                                ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* AI IMAGE GENERATION */}
+                                        <div style={{
+                                            background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
+                                            border: '1px solid rgba(212, 175, 55, 0.2)',
+                                            borderRadius: '8px',
+                                            padding: '30px',
+                                            marginBottom: '25px',
+                                        }}>
+                                            <h2 style={{
+                                                fontSize: '18px',
+                                                letterSpacing: '3px',
+                                                textTransform: 'uppercase',
+                                                color: '#D4AF37',
+                                                marginBottom: '20px',
+                                                fontWeight: '400',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '10px',
+                                            }}>
+                                                🎬 AI Generate Cover
+                                            </h2>
+
+                                            {/* Style Selection */}
+                                            <div style={{ marginBottom: '20px' }}>
+                                                <label style={{
+                                                    display: 'block',
+                                                    fontSize: '11px',
+                                                    letterSpacing: '2px',
+                                                    textTransform: 'uppercase',
+                                                    color: '#808080',
+                                                    marginBottom: '10px',
+                                                }}>
+                                                    AI Style
+                                                </label>
+                                                <div style={{
+                                                    display: 'grid',
+                                                    gridTemplateColumns: 'repeat(3, 1fr)',
+                                                    gap: '8px',
+                                                }}>
+                                                    {coverStyles.map(style => (
+                                                        <button
+                                                            key={style.id}
+                                                            onClick={() => setCoverStyle(style.id)}
+                                                            style={{
+                                                                padding: '12px 8px',
+                                                                background: coverStyle === style.id 
+                                                                    ? 'rgba(212, 175, 55, 0.2)'
+                                                                    : 'rgba(30, 30, 40, 0.5)',
+                                                                border: coverStyle === style.id 
+                                                                    ? '1px solid rgba(212, 175, 55, 0.5)'
+                                                                    : '1px solid rgba(80, 80, 100, 0.3)',
+                                                                borderRadius: '4px',
+                                                                color: coverStyle === style.id ? '#D4AF37' : '#909090',
+                                                                fontSize: '11px',
+                                                                cursor: 'pointer',
+                                                                fontFamily: 'inherit',
+                                                                textAlign: 'center',
+                                                            }}
+                                                        >
+                                                            <div style={{ fontSize: '18px', marginBottom: '4px' }}>{style.icon}</div>
+                                                            {style.name}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Prompt Input */}
+                                            <div style={{ marginBottom: '15px' }}>
+                                                <label style={{
+                                                    display: 'block',
+                                                    fontSize: '11px',
+                                                    letterSpacing: '2px',
+                                                    textTransform: 'uppercase',
+                                                    color: '#808080',
+                                                    marginBottom: '8px',
+                                                }}>
+                                                    Describe Your Cover
+                                                </label>
+                                                <textarea
+                                                    value={coverPrompt}
+                                                    onChange={(e) => setCoverPrompt(e.target.value)}
+                                                    placeholder="e.g., A woman standing on a cliff at sunset, dramatic clouds, golden light..."
+                                                    rows={3}
+                                                    style={{
+                                                        width: '100%',
+                                                        padding: '14px',
+                                                        background: 'rgba(20, 20, 30, 0.8)',
+                                                        border: '1px solid rgba(100, 100, 120, 0.3)',
+                                                        borderRadius: '4px',
+                                                        color: '#E8E8E8',
+                                                        fontSize: '14px',
+                                                        fontFamily: 'inherit',
+                                                        outline: 'none',
+                                                        resize: 'vertical',
+                                                        boxSizing: 'border-box',
+                                                    }}
+                                                />
+                                            </div>
+
+                                            {/* Quick Prompts */}
+                                            <div style={{ marginBottom: '15px' }}>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                                    {['Sunset mountains', 'Mysterious forest', 'Ocean waves', 'City night', 'Romantic garden'].map(prompt => (
+                                                        <button
+                                                            key={prompt}
+                                                            onClick={() => setCoverPrompt(prompt)}
+                                                            style={{
+                                                                padding: '6px 10px',
+                                                                background: 'rgba(30, 30, 40, 0.6)',
+                                                                border: '1px solid rgba(80, 80, 100, 0.3)',
+                                                                borderRadius: '15px',
+                                                                color: '#808080',
+                                                                fontSize: '10px',
+                                                                cursor: 'pointer',
+                                                                fontFamily: 'inherit',
+                                                            }}
+                                                        >
+                                                            {prompt}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Generate Button */}
+                                            <button
+                                                onClick={generateCover}
+                                                disabled={isGenerating || !coverPrompt}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '16px',
+                                                    background: isGenerating 
+                                                        ? 'linear-gradient(90deg, #444 0%, #555 50%, #444 100%)'
+                                                        : 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)',
+                                                    backgroundSize: isGenerating ? '200% 100%' : '100% 100%',
+                                                    animation: isGenerating ? 'shimmer 1.5s infinite' : 'none',
+                                                    border: 'none',
+                                                    borderRadius: '4px',
+                                                    color: '#0D0D0D',
+                                                    fontSize: '13px',
+                                                    letterSpacing: '2px',
+                                                    textTransform: 'uppercase',
+                                                    cursor: isGenerating ? 'wait' : 'pointer',
+                                                    fontFamily: 'inherit',
+                                                    fontWeight: '600',
+                                                    opacity: !coverPrompt ? 0.5 : 1,
+                                                }}
+                                            >
+                                                {isGenerating ? (
+                                                    <span>⏳ Generating AI Cover...</span>
+                                                ) : (
+                                                    <span>✦ Generate AI Cover</span>
+                                                )}
+                                            </button>
+
+                                            {/* Generated Images History */}
+                                            {generatedImages.length > 0 && (
+                                                <div style={{ marginTop: '15px' }}>
+                                                    <p style={{ fontSize: '10px', color: '#606060', letterSpacing: '1px', marginBottom: '8px', textTransform: 'uppercase' }}>
+                                                        Previous Generations:
+                                                    </p>
+                                                    <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '5px' }}>
+                                                        {generatedImages.slice(-5).map((img, idx) => (
+                                                            <div
+                                                                key={idx}
+                                                                onClick={() => {
+                                                                    setGeneratedCover(img);
+                                                                    setImageSource('ai');
+                                                                }}
+                                                                style={{
+                                                                    width: '50px',
+                                                                    height: '70px',
+                                                                    background: `url(${img.url}) center/cover`,
+                                                                    borderRadius: '4px',
+                                                                    cursor: 'pointer',
+                                                                    border: generatedCover?.timestamp === img.timestamp && imageSource === 'ai'
+                                                                        ? '2px solid #D4AF37'
+                                                                        : '2px solid transparent',
+                                                                    flexShrink: 0,
+                                                                }}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* TRANSPARENCY CONTROLS */}
+                                        <div style={{
+                                            background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
+                                            border: '1px solid rgba(212, 175, 55, 0.2)',
+                                            borderRadius: '8px',
+                                            padding: '30px',
+                                        }}>
+                                            <h2 style={{
+                                                fontSize: '18px',
+                                                letterSpacing: '3px',
+                                                textTransform: 'uppercase',
+                                                color: '#D4AF37',
+                                                marginBottom: '20px',
+                                                fontWeight: '400',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '10px',
+                                            }}>
+                                                🎚️ Image Controls
+                                            </h2>
+
+                                            {/* Image Opacity */}
+                                            <div style={{ marginBottom: '20px' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                    <label style={{
+                                                        fontSize: '12px',
+                                                        color: '#A0A0A0',
+                                                    }}>
+                                                        Image Opacity
+                                                    </label>
+                                                    <span style={{ fontSize: '12px', color: '#D4AF37' }}>{imageOpacity}%</span>
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min="0"
+                                                    max="100"
+                                                    value={imageOpacity}
+                                                    onChange={(e) => setImageOpacity(Number(e.target.value))}
+                                                    style={{
+                                                        width: '100%',
+                                                        accentColor: '#D4AF37',
+                                                        cursor: 'pointer',
+                                                    }}
+                                                />
+                                            </div>
+
+                                            {/* Text Overlay Opacity */}
+                                            <div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                    <label style={{
+                                                        fontSize: '12px',
+                                                        color: '#A0A0A0',
+                                                    }}>
+                                                        Text Overlay Darkness
+                                                    </label>
+                                                    <span style={{ fontSize: '12px', color: '#D4AF37' }}>{overlayOpacity}%</span>
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min="0"
+                                                    max="100"
+                                                    value={overlayOpacity}
+                                                    onChange={(e) => setOverlayOpacity(Number(e.target.value))}
+                                                    style={{
+                                                        width: '100%',
+                                                        accentColor: '#D4AF37',
+                                                        cursor: 'pointer',
+                                                    }}
+                                                />
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Cover Preview */}
-                                    <div style={{
-                                        background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
-                                        border: '1px solid rgba(212, 175, 55, 0.2)',
-                                        borderRadius: '4px',
-                                        padding: '40px',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                    }}>
-                                        <h2 style={{
-                                            fontSize: '20px',
-                                            letterSpacing: '4px',
-                                            textTransform: 'uppercase',
-                                            color: '#D4AF37',
-                                            marginBottom: '30px',
-                                            fontWeight: '400',
-                                            alignSelf: 'flex-start',
-                                        }}>
-                                            Cover Preview
-                                        </h2>
-
-                                        {/* Book Cover Mockup */}
+                                    {/* RIGHT COLUMN - Preview & Details */}
+                                    <div>
+                                        {/* Book Details */}
                                         <div style={{
-                                            width: '280px',
-                                            height: '420px',
-                                            background: generatedCover 
-                                                ? `url(${generatedCover.url}) center/cover`
-                                                : 'linear-gradient(145deg, #252530 0%, #1a1a22 100%)',
-                                            borderRadius: '4px',
-                                            boxShadow: '20px 20px 60px rgba(0,0,0,0.5), -5px -5px 20px rgba(212, 175, 55, 0.05)',
-                                            position: 'relative',
-                                            overflow: 'hidden',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            justifyContent: 'space-between',
+                                            background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
+                                            border: '1px solid rgba(212, 175, 55, 0.2)',
+                                            borderRadius: '8px',
+                                            padding: '30px',
+                                            marginBottom: '25px',
                                         }}>
-                                            {/* Overlay for text */}
-                                            <div style={{
-                                                position: 'absolute',
-                                                top: 0,
-                                                left: 0,
-                                                right: 0,
-                                                bottom: 0,
-                                                background: generatedCover 
-                                                    ? 'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.6) 100%)'
-                                                    : 'transparent',
-                                                padding: '30px 25px',
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                justifyContent: 'space-between',
+                                            <h2 style={{
+                                                fontSize: '18px',
+                                                letterSpacing: '3px',
+                                                textTransform: 'uppercase',
+                                                color: '#D4AF37',
+                                                marginBottom: '20px',
+                                                fontWeight: '400',
                                             }}>
-                                                {/* Top Decorative */}
-                                                <div style={{
-                                                    height: '6px',
-                                                    background: 'linear-gradient(90deg, #D4AF37, #F4E5B2, #D4AF37)',
-                                                    position: 'absolute',
-                                                    top: 0,
-                                                    left: 0,
-                                                    right: 0,
-                                                }} />
-                                                
-                                                {generatedCover || ebookTitle ? (
-                                                    <>
-                                                        <div style={{ textAlign: 'center', marginTop: '40px' }}>
-                                                            <div style={{
-                                                                fontSize: '11px',
-                                                                letterSpacing: '3px',
-                                                                color: '#D4AF37',
-                                                                marginBottom: '15px',
-                                                                textTransform: 'uppercase',
-                                                                textShadow: '0 2px 10px rgba(0,0,0,0.8)',
-                                                            }}>
-                                                                {coverStyle} Edition
-                                                            </div>
-                                                            <h3 style={{
-                                                                fontSize: '26px',
-                                                                fontWeight: '400',
-                                                                color: '#FFFFFF',
-                                                                lineHeight: '1.3',
-                                                                margin: 0,
-                                                                textShadow: '0 2px 20px rgba(0,0,0,0.9)',
-                                                            }}>
-                                                                {ebookTitle || 'Your Title'}
-                                                            </h3>
-                                                        </div>
-                                                        <div style={{ textAlign: 'center' }}>
-                                                            <div style={{
-                                                                width: '50px',
-                                                                height: '1px',
-                                                                background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)',
-                                                                margin: '0 auto 15px',
-                                                            }} />
-                                                            <p style={{
-                                                                fontSize: '14px',
-                                                                letterSpacing: '2px',
-                                                                color: '#E0E0E0',
-                                                                margin: 0,
-                                                                textTransform: 'uppercase',
-                                                                textShadow: '0 2px 10px rgba(0,0,0,0.8)',
-                                                            }}>
-                                                                {ebookAuthor || 'Author Name'}
-                                                            </p>
-                                                        </div>
-                                                    </>
-                                                ) : (
-                                                    <div style={{
-                                                        display: 'flex',
-                                                        flexDirection: 'column',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        height: '100%',
-                                                        color: '#505060',
-                                                    }}>
-                                                        <div style={{ 
-                                                            fontSize: '48px', 
-                                                            marginBottom: '20px', 
-                                                            opacity: 0.5,
-                                                            animation: 'float 3s ease-in-out infinite',
-                                                        }}>
-                                                            📚
-                                                        </div>
-                                                        <p style={{
-                                                            fontSize: '12px',
-                                                            letterSpacing: '2px',
-                                                            textTransform: 'uppercase',
-                                                            textAlign: 'center',
-                                                        }}>
-                                                            Generate a cover<br />to see preview
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
+                                                📝 Book Details
+                                            </h2>
 
-                                        {generatedCover && (
-                                            <div style={{
-                                                marginTop: '30px',
-                                                display: 'flex',
-                                                gap: '12px',
-                                                flexWrap: 'wrap',
-                                                justifyContent: 'center',
-                                            }}>
-                                                <button 
-                                                    onClick={generateCover}
-                                                    style={{
-                                                        padding: '12px 24px',
-                                                        background: 'transparent',
-                                                        border: '1px solid rgba(212, 175, 55, 0.4)',
-                                                        color: '#D4AF37',
-                                                        fontSize: '11px',
-                                                        letterSpacing: '2px',
-                                                        textTransform: 'uppercase',
-                                                        cursor: 'pointer',
-                                                        fontFamily: 'inherit',
-                                                        transition: 'all 0.3s ease',
-                                                    }}
-                                                    onMouseEnter={(e) => e.target.style.background = 'rgba(212, 175, 55, 0.1)'}
-                                                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
-                                                >
-                                                    Regenerate
-                                                </button>
-                                                <button 
-                                                    onClick={() => showNotification('Cover applied to ebook!')}
-                                                    style={{
-                                                        padding: '12px 24px',
-                                                        background: 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)',
-                                                        border: 'none',
-                                                        color: '#0D0D0D',
-                                                        fontSize: '11px',
-                                                        letterSpacing: '2px',
-                                                        textTransform: 'uppercase',
-                                                        cursor: 'pointer',
-                                                        fontFamily: 'inherit',
-                                                        fontWeight: '600',
-                                                    }}
-                                                >
-                                                    Use This Cover
-                                                </button>
-                                            </div>
-                                        )}
-
-                                        {/* Generated Images History */}
-                                        {generatedImages.length > 1 && (
-                                            <div style={{ marginTop: '30px', width: '100%' }}>
-                                                <p style={{
+                                            <div style={{ marginBottom: '15px' }}>
+                                                <label style={{
+                                                    display: 'block',
                                                     fontSize: '11px',
                                                     letterSpacing: '2px',
                                                     textTransform: 'uppercase',
-                                                    color: '#606060',
-                                                    marginBottom: '12px',
+                                                    color: '#808080',
+                                                    marginBottom: '8px',
                                                 }}>
-                                                    Previous Generations:
-                                                </p>
-                                                <div style={{
-                                                    display: 'flex',
-                                                    gap: '10px',
-                                                    overflowX: 'auto',
-                                                    paddingBottom: '10px',
-                                                }}>
-                                                    {generatedImages.slice(-5).map((img, idx) => (
-                                                        <div
-                                                            key={idx}
-                                                            onClick={() => setGeneratedCover(img)}
-                                                            style={{
-                                                                width: '60px',
-                                                                height: '90px',
-                                                                background: `url(${img.url}) center/cover`,
-                                                                borderRadius: '4px',
-                                                                cursor: 'pointer',
-                                                                border: generatedCover?.timestamp === img.timestamp 
-                                                                    ? '2px solid #D4AF37'
-                                                                    : '2px solid transparent',
-                                                                transition: 'all 0.3s ease',
-                                                                flexShrink: 0,
-                                                            }}
-                                                        />
-                                                    ))}
-                                                </div>
+                                                    Book Title
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={ebookTitle}
+                                                    onChange={(e) => setEbookTitle(e.target.value)}
+                                                    placeholder="Enter your book title..."
+                                                    style={{
+                                                        width: '100%',
+                                                        padding: '14px',
+                                                        background: 'rgba(20, 20, 30, 0.8)',
+                                                        border: '1px solid rgba(100, 100, 120, 0.3)',
+                                                        borderRadius: '4px',
+                                                        color: '#E8E8E8',
+                                                        fontSize: '15px',
+                                                        fontFamily: 'inherit',
+                                                        outline: 'none',
+                                                        boxSizing: 'border-box',
+                                                    }}
+                                                />
                                             </div>
-                                        )}
+
+                                            <div>
+                                                <label style={{
+                                                    display: 'block',
+                                                    fontSize: '11px',
+                                                    letterSpacing: '2px',
+                                                    textTransform: 'uppercase',
+                                                    color: '#808080',
+                                                    marginBottom: '8px',
+                                                }}>
+                                                    Author Name
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={ebookAuthor}
+                                                    onChange={(e) => setEbookAuthor(e.target.value)}
+                                                    placeholder="Author name..."
+                                                    style={{
+                                                        width: '100%',
+                                                        padding: '14px',
+                                                        background: 'rgba(20, 20, 30, 0.8)',
+                                                        border: '1px solid rgba(100, 100, 120, 0.3)',
+                                                        borderRadius: '4px',
+                                                        color: '#E8E8E8',
+                                                        fontSize: '15px',
+                                                        fontFamily: 'inherit',
+                                                        outline: 'none',
+                                                        boxSizing: 'border-box',
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Cover Preview */}
+                                        <div style={{
+                                            background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
+                                            border: '1px solid rgba(212, 175, 55, 0.2)',
+                                            borderRadius: '8px',
+                                            padding: '30px',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                        }}>
+                                            <h2 style={{
+                                                fontSize: '18px',
+                                                letterSpacing: '3px',
+                                                textTransform: 'uppercase',
+                                                color: '#D4AF37',
+                                                marginBottom: '25px',
+                                                fontWeight: '400',
+                                                alignSelf: 'flex-start',
+                                            }}>
+                                                👁️ Live Preview
+                                            </h2>
+
+                                            <BookCover size="large" />
+
+                                            {/* Current Source Indicator */}
+                                            <div style={{
+                                                marginTop: '20px',
+                                                padding: '10px 20px',
+                                                background: 'rgba(212, 175, 55, 0.1)',
+                                                borderRadius: '20px',
+                                                fontSize: '11px',
+                                                color: '#D4AF37',
+                                                letterSpacing: '1px',
+                                                textTransform: 'uppercase',
+                                            }}>
+                                                {imageSource === 'upload' ? '📷 Using Uploaded Image' : 
+                                                 imageSource === 'ai' ? '🎬 Using AI Generated' : 
+                                                 '📚 No Image Selected'}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* Upload Draft Tab */}
+                        {/* ==================== UPLOAD DRAFT TAB ==================== */}
                         {activeTab === 'upload' && (
                             <div style={{ animation: 'fadeIn 0.5s ease' }}>
                                 <div style={{
                                     display: 'grid',
-                                    gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-                                    gap: '50px',
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+                                    gap: '40px',
                                 }}>
                                     {/* Upload Panel */}
                                     <div style={{
                                         background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
                                         border: '1px solid rgba(212, 175, 55, 0.2)',
-                                        borderRadius: '4px',
-                                        padding: '40px',
+                                        borderRadius: '8px',
+                                        padding: '30px',
                                     }}>
                                         <h2 style={{
-                                            fontSize: '20px',
-                                            letterSpacing: '4px',
+                                            fontSize: '18px',
+                                            letterSpacing: '3px',
                                             textTransform: 'uppercase',
                                             color: '#D4AF37',
-                                            marginBottom: '30px',
+                                            marginBottom: '25px',
                                             fontWeight: '400',
                                         }}>
                                             Upload Your Manuscript
                                         </h2>
 
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept=".txt,.doc,.docx,.rtf,.md"
+                                            onChange={handleFileUpload}
+                                            style={{ display: 'none' }}
+                                        />
+
                                         <div 
+                                            onClick={() => fileInputRef.current?.click()}
                                             style={{
-                                                border: '2px dashed rgba(212, 175, 55, 0.3)',
+                                                border: '2px dashed rgba(212, 175, 55, 0.4)',
                                                 borderRadius: '8px',
-                                                padding: '60px 40px',
+                                                padding: '50px 30px',
                                                 textAlign: 'center',
-                                                background: 'rgba(212, 175, 55, 0.02)',
                                                 cursor: 'pointer',
-                                                transition: 'all 0.3s ease',
-                                            }}
-                                            onClick={() => document.getElementById('file-upload').click()}
-                                            onDragOver={(e) => {
-                                                e.preventDefault();
-                                                e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.6)';
-                                                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.05)';
-                                            }}
-                                            onDragLeave={(e) => {
-                                                e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.3)';
-                                                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.02)';
-                                            }}
-                                            onDrop={(e) => {
-                                                e.preventDefault();
-                                                e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.3)';
-                                                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.02)';
-                                                const file = e.dataTransfer.files[0];
-                                                if (file) {
-                                                    handleFileUpload({ target: { files: [file] } });
-                                                }
+                                                background: 'rgba(212, 175, 55, 0.03)',
                                             }}
                                         >
-                                            <input
-                                                id="file-upload"
-                                                type="file"
-                                                accept=".txt,.doc,.docx,.rtf,.md"
-                                                onChange={handleFileUpload}
-                                                style={{ display: 'none' }}
-                                            />
-                                            <div style={{ fontSize: '48px', marginBottom: '20px' }}>📄</div>
-                                            <p style={{
-                                                fontSize: '16px',
-                                                color: '#D4AF37',
-                                                marginBottom: '10px',
-                                            }}>
-                                                Drop your manuscript here
+                                            <div style={{ fontSize: '48px', marginBottom: '15px' }}>📄</div>
+                                            <p style={{ color: '#D4AF37', fontSize: '16px', marginBottom: '8px' }}>
+                                                Click to upload manuscript
                                             </p>
-                                            <p style={{
-                                                fontSize: '13px',
-                                                color: '#707070',
-                                                letterSpacing: '1px',
-                                            }}>
-                                                or click to browse • TXT, DOC, DOCX, RTF, MD
+                                            <p style={{ color: '#707070', fontSize: '12px' }}>
+                                                TXT, DOC, DOCX, RTF, Markdown
                                             </p>
                                         </div>
 
                                         {uploadedDoc && (
                                             <div style={{
-                                                marginTop: '30px',
-                                                padding: '20px',
-                                                background: 'rgba(212, 175, 55, 0.08)',
-                                                border: '1px solid rgba(212, 175, 55, 0.2)',
+                                                marginTop: '20px',
+                                                padding: '15px',
+                                                background: 'rgba(212, 175, 55, 0.1)',
                                                 borderRadius: '4px',
                                             }}>
-                                                <div style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'space-between',
-                                                    flexWrap: 'wrap',
-                                                    gap: '15px',
-                                                }}>
-                                                    <div>
-                                                        <p style={{
-                                                            fontSize: '14px',
-                                                            color: '#D4AF37',
-                                                            margin: '0 0 5px 0',
-                                                        }}>
-                                                            ✓ {uploadedDoc.name}
-                                                        </p>
-                                                        <p style={{
-                                                            fontSize: '12px',
-                                                            color: '#808080',
-                                                            margin: 0,
-                                                        }}>
-                                                            {uploadedDoc.size}
-                                                        </p>
-                                                    </div>
-                                                    <button 
-                                                        onClick={() => showNotification('Document processed!')}
-                                                        style={{
-                                                            padding: '10px 20px',
-                                                            background: 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)',
-                                                            border: 'none',
-                                                            borderRadius: '4px',
-                                                            color: '#0D0D0D',
-                                                            fontSize: '11px',
-                                                            letterSpacing: '1px',
-                                                            textTransform: 'uppercase',
-                                                            cursor: 'pointer',
-                                                            fontFamily: 'inherit',
-                                                            fontWeight: '600',
-                                                        }}
-                                                    >
-                                                        Process Document
-                                                    </button>
-                                                </div>
+                                                <p style={{ color: '#D4AF37', fontSize: '14px', margin: '0 0 5px 0' }}>
+                                                    ✓ {uploadedDoc.name}
+                                                </p>
+                                                <p style={{ color: '#707070', fontSize: '12px', margin: 0 }}>
+                                                    {uploadedDoc.size}
+                                                </p>
                                             </div>
                                         )}
                                     </div>
@@ -1033,15 +1100,15 @@
                                     <div style={{
                                         background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
                                         border: '1px solid rgba(212, 175, 55, 0.2)',
-                                        borderRadius: '4px',
-                                        padding: '40px',
+                                        borderRadius: '8px',
+                                        padding: '30px',
                                     }}>
                                         <h2 style={{
-                                            fontSize: '20px',
-                                            letterSpacing: '4px',
+                                            fontSize: '18px',
+                                            letterSpacing: '3px',
                                             textTransform: 'uppercase',
                                             color: '#D4AF37',
-                                            marginBottom: '30px',
+                                            marginBottom: '25px',
                                             fontWeight: '400',
                                         }}>
                                             Document Structure
@@ -1052,45 +1119,34 @@
                                                 <div style={{
                                                     display: 'flex',
                                                     justifyContent: 'space-between',
-                                                    marginBottom: '20px',
-                                                    padding: '15px 20px',
+                                                    marginBottom: '15px',
+                                                    padding: '12px 15px',
                                                     background: 'rgba(212, 175, 55, 0.1)',
                                                     borderRadius: '4px',
                                                 }}>
                                                     <span style={{ color: '#D4AF37', fontSize: '13px' }}>
-                                                        {chapters.length} Section(s) Detected
+                                                        {chapters.length} Section(s)
                                                     </span>
                                                     <span style={{ color: '#808080', fontSize: '13px' }}>
                                                         {chapters.reduce((acc, ch) => acc + ch.wordCount, 0).toLocaleString()} words
                                                     </span>
                                                 </div>
-                                                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                                                <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
                                                     {chapters.map((chapter) => (
                                                         <div key={chapter.id} style={{
-                                                            padding: '18px 20px',
+                                                            padding: '15px',
                                                             background: 'rgba(25, 25, 35, 0.6)',
                                                             border: '1px solid rgba(80, 80, 100, 0.2)',
                                                             borderRadius: '4px',
-                                                            marginBottom: '10px',
+                                                            marginBottom: '8px',
                                                             display: 'flex',
                                                             justifyContent: 'space-between',
                                                             alignItems: 'center',
-                                                            transition: 'all 0.3s ease',
                                                         }}>
-                                                            <div>
-                                                                <p style={{
-                                                                    fontSize: '15px',
-                                                                    color: '#E0E0E0',
-                                                                    margin: 0,
-                                                                }}>
-                                                                    {chapter.title}
-                                                                </p>
-                                                            </div>
-                                                            <span style={{
-                                                                fontSize: '12px',
-                                                                color: '#707070',
-                                                                letterSpacing: '1px',
-                                                            }}>
+                                                            <span style={{ color: '#E0E0E0', fontSize: '14px' }}>
+                                                                {chapter.title}
+                                                            </span>
+                                                            <span style={{ color: '#707070', fontSize: '11px' }}>
                                                                 {chapter.wordCount.toLocaleString()} words
                                                             </span>
                                                         </div>
@@ -1098,18 +1154,9 @@
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div style={{
-                                                textAlign: 'center',
-                                                padding: '60px 20px',
-                                                color: '#505060',
-                                            }}>
-                                                <div style={{ fontSize: '40px', marginBottom: '20px', opacity: 0.5 }}>📑</div>
-                                                <p style={{
-                                                    fontSize: '13px',
-                                                    letterSpacing: '1px',
-                                                }}>
-                                                    Upload a document to see its structure
-                                                </p>
+                                            <div style={{ textAlign: 'center', padding: '50px 20px', color: '#505060' }}>
+                                                <div style={{ fontSize: '40px', marginBottom: '15px', opacity: 0.5 }}>📑</div>
+                                                <p style={{ fontSize: '13px' }}>Upload a document to see structure</p>
                                             </div>
                                         )}
                                     </div>
@@ -1117,7 +1164,7 @@
                             </div>
                         )}
 
-                        {/* Template Selection Tab */}
+                        {/* ==================== TEMPLATES TAB ==================== */}
                         {activeTab === 'template' && (
                             <div style={{ animation: 'fadeIn 0.5s ease' }}>
                                 <h2 style={{
@@ -1125,7 +1172,7 @@
                                     letterSpacing: '4px',
                                     textTransform: 'uppercase',
                                     color: '#D4AF37',
-                                    marginBottom: '40px',
+                                    marginBottom: '30px',
                                     fontWeight: '400',
                                     textAlign: 'center',
                                 }}>
@@ -1134,15 +1181,15 @@
 
                                 <div style={{
                                     display: 'grid',
-                                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                                    gap: '25px',
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                                    gap: '20px',
                                 }}>
                                     {templates.map(template => (
                                         <div
                                             key={template.id}
                                             onClick={() => {
                                                 setSelectedTemplate(template.id);
-                                                showNotification(`${template.name} template selected!`);
+                                                showNotification(`${template.name} selected!`);
                                             }}
                                             style={{
                                                 background: selectedTemplate === template.id 
@@ -1152,471 +1199,260 @@
                                                     ? '2px solid rgba(212, 175, 55, 0.6)'
                                                     : '1px solid rgba(80, 80, 100, 0.2)',
                                                 borderRadius: '8px',
-                                                padding: '30px',
+                                                padding: '25px',
                                                 cursor: 'pointer',
-                                                transition: 'all 0.4s ease',
                                                 position: 'relative',
-                                                overflow: 'hidden',
                                             }}
                                         >
                                             {selectedTemplate === template.id && (
                                                 <div style={{
                                                     position: 'absolute',
-                                                    top: '15px',
-                                                    right: '15px',
-                                                    width: '24px',
-                                                    height: '24px',
+                                                    top: '12px',
+                                                    right: '12px',
+                                                    width: '22px',
+                                                    height: '22px',
                                                     background: 'linear-gradient(135deg, #D4AF37, #AA8C2C)',
                                                     borderRadius: '50%',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'center',
                                                     color: '#0D0D0D',
-                                                    fontSize: '14px',
+                                                    fontSize: '12px',
                                                 }}>
                                                     ✓
                                                 </div>
                                             )}
                                             
                                             <div style={{
-                                                width: '60px',
-                                                height: '80px',
+                                                width: '50px',
+                                                height: '70px',
                                                 background: template.gradient,
                                                 borderRadius: '4px',
-                                                marginBottom: '20px',
-                                                boxShadow: `0 10px 30px ${template.color}33`,
+                                                marginBottom: '15px',
+                                                boxShadow: `0 8px 25px ${template.color}33`,
                                             }} />
                                             
-                                            <h3 style={{
-                                                fontSize: '18px',
-                                                color: '#E0E0E0',
-                                                marginBottom: '8px',
-                                                fontWeight: '400',
-                                            }}>
+                                            <h3 style={{ fontSize: '16px', color: '#E0E0E0', marginBottom: '6px', fontWeight: '400' }}>
                                                 {template.name}
                                             </h3>
-                                            <p style={{
-                                                fontSize: '13px',
-                                                color: '#707070',
-                                                margin: 0,
-                                                lineHeight: '1.5',
-                                            }}>
+                                            <p style={{ fontSize: '12px', color: '#707070', margin: 0 }}>
                                                 {template.desc}
                                             </p>
                                         </div>
                                     ))}
                                 </div>
-
-                                {/* Template Features */}
-                                <div style={{
-                                    marginTop: '50px',
-                                    padding: '40px',
-                                    background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
-                                    border: '1px solid rgba(212, 175, 55, 0.2)',
-                                    borderRadius: '8px',
-                                }}>
-                                    <h3 style={{
-                                        fontSize: '16px',
-                                        letterSpacing: '3px',
-                                        textTransform: 'uppercase',
-                                        color: '#D4AF37',
-                                        marginBottom: '30px',
-                                        fontWeight: '400',
-                                    }}>
-                                        All Templates Include
-                                    </h3>
-                                    <div style={{
-                                        display: 'grid',
-                                        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                                        gap: '20px',
-                                    }}>
-                                        {[
-                                            { icon: '📖', title: 'Chapter Headers', desc: 'Elegant styled headers' },
-                                            { icon: '✨', title: 'Drop Caps', desc: 'Decorative first letters' },
-                                            { icon: '📝', title: 'Typography', desc: 'Premium font pairing' },
-                                            { icon: '🎨', title: 'Color Scheme', desc: 'Cohesive palette' },
-                                            { icon: '📄', title: 'Page Layout', desc: 'Professional margins' },
-                                            { icon: '🔢', title: 'Page Numbers', desc: 'Styled numbering' },
-                                            { icon: '📑', title: 'TOC', desc: 'Auto table of contents' },
-                                            { icon: '💫', title: 'Ornaments', desc: 'Decorative elements' },
-                                        ].map((feature, idx) => (
-                                            <div key={idx} style={{
-                                                textAlign: 'center',
-                                                padding: '20px 15px',
-                                                background: 'rgba(30, 30, 40, 0.4)',
-                                                borderRadius: '6px',
-                                            }}>
-                                                <div style={{ fontSize: '28px', marginBottom: '12px' }}>{feature.icon}</div>
-                                                <p style={{
-                                                    fontSize: '13px',
-                                                    color: '#C0C0C0',
-                                                    marginBottom: '5px',
-                                                }}>
-                                                    {feature.title}
-                                                </p>
-                                                <p style={{
-                                                    fontSize: '11px',
-                                                    color: '#707070',
-                                                    margin: 0,
-                                                }}>
-                                                    {feature.desc}
-                                                </p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
                             </div>
                         )}
 
-                        {/* Format & Style Tab */}
-                        {activeTab === 'format' && (
-                            <div style={{ animation: 'fadeIn 0.5s ease' }}>
-                                <div style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-                                    gap: '50px',
-                                }}>
-                                    <div style={{
-                                        background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
-                                        border: '1px solid rgba(212, 175, 55, 0.2)',
-                                        borderRadius: '4px',
-                                        padding: '40px',
-                                    }}>
-                                        <h2 style={{
-                                            fontSize: '20px',
-                                            letterSpacing: '4px',
-                                            textTransform: 'uppercase',
-                                            color: '#D4AF37',
-                                            marginBottom: '30px',
-                                            fontWeight: '400',
-                                        }}>
-                                            Typography Settings
-                                        </h2>
-
-                                        {[
-                                            { label: 'Body Font', options: ['Garamond', 'Baskerville', 'Caslon', 'Minion Pro', 'Georgia'] },
-                                            { label: 'Heading Font', options: ['Playfair Display', 'Cormorant', 'Cinzel', 'Libre Baskerville'] },
-                                            { label: 'Font Size', options: ['10pt', '11pt', '12pt', '14pt'] },
-                                            { label: 'Line Spacing', options: ['1.2', '1.4', '1.5', '1.6', '2.0'] },
-                                        ].map((setting, idx) => (
-                                            <div key={idx} style={{ marginBottom: '25px' }}>
-                                                <label style={{
-                                                    display: 'block',
-                                                    fontSize: '11px',
-                                                    letterSpacing: '2px',
-                                                    textTransform: 'uppercase',
-                                                    color: '#808080',
-                                                    marginBottom: '10px',
-                                                }}>
-                                                    {setting.label}
-                                                </label>
-                                                <select style={{
-                                                    width: '100%',
-                                                    padding: '14px 18px',
-                                                    background: 'rgba(20, 20, 30, 0.8)',
-                                                    border: '1px solid rgba(100, 100, 120, 0.3)',
-                                                    borderRadius: '4px',
-                                                    color: '#E8E8E8',
-                                                    fontSize: '14px',
-                                                    fontFamily: 'inherit',
-                                                    outline: 'none',
-                                                    cursor: 'pointer',
-                                                }}>
-                                                    {setting.options.map(opt => (
-                                                        <option key={opt} value={opt}>{opt}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <div style={{
-                                        background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
-                                        border: '1px solid rgba(212, 175, 55, 0.2)',
-                                        borderRadius: '4px',
-                                        padding: '40px',
-                                    }}>
-                                        <h2 style={{
-                                            fontSize: '20px',
-                                            letterSpacing: '4px',
-                                            textTransform: 'uppercase',
-                                            color: '#D4AF37',
-                                            marginBottom: '30px',
-                                            fontWeight: '400',
-                                        }}>
-                                            Page Layout
-                                        </h2>
-
-                                        {[
-                                            { label: 'Page Size', options: ['6" x 9" (Standard)', '5.5" x 8.5"', '5" x 8"', 'A5', 'Letter'] },
-                                            { label: 'Margins', options: ['Standard', 'Wide', 'Narrow', 'Custom'] },
-                                            { label: 'Alignment', options: ['Justified', 'Left Aligned', 'Ragged Right'] },
-                                        ].map((setting, idx) => (
-                                            <div key={idx} style={{ marginBottom: '25px' }}>
-                                                <label style={{
-                                                    display: 'block',
-                                                    fontSize: '11px',
-                                                    letterSpacing: '2px',
-                                                    textTransform: 'uppercase',
-                                                    color: '#808080',
-                                                    marginBottom: '10px',
-                                                }}>
-                                                    {setting.label}
-                                                </label>
-                                                <select style={{
-                                                    width: '100%',
-                                                    padding: '14px 18px',
-                                                    background: 'rgba(20, 20, 30, 0.8)',
-                                                    border: '1px solid rgba(100, 100, 120, 0.3)',
-                                                    borderRadius: '4px',
-                                                    color: '#E8E8E8',
-                                                    fontSize: '14px',
-                                                    fontFamily: 'inherit',
-                                                    outline: 'none',
-                                                    cursor: 'pointer',
-                                                }}>
-                                                    {setting.options.map(opt => (
-                                                        <option key={opt} value={opt}>{opt}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        ))}
-
-                                        <div style={{ marginTop: '30px' }}>
-                                            <h3 style={{
-                                                fontSize: '14px',
-                                                letterSpacing: '2px',
-                                                textTransform: 'uppercase',
-                                                color: '#909090',
-                                                marginBottom: '15px',
-                                                fontWeight: '400',
-                                            }}>
-                                                Additional Options
-                                            </h3>
-                                            {['Include Drop Caps', 'Add Chapter Ornaments', 'Generate Table of Contents', 'Add Page Numbers'].map((option, idx) => (
-                                                <label key={idx} style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    padding: '12px 0',
-                                                    cursor: 'pointer',
-                                                    borderBottom: '1px solid rgba(80, 80, 100, 0.15)',
-                                                }}>
-                                                    <input type="checkbox" defaultChecked style={{
-                                                        marginRight: '12px',
-                                                        accentColor: '#D4AF37',
-                                                        width: '18px',
-                                                        height: '18px',
-                                                    }} />
-                                                    <span style={{ fontSize: '14px', color: '#B0B0B0' }}>{option}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Preview Tab */}
+                        {/* ==================== PREVIEW TAB ==================== */}
                         {activeTab === 'preview' && (
                             <div style={{ animation: 'fadeIn 0.5s ease' }}>
+                                {/* Preview Mode Selector - NOW WORKING */}
                                 <div style={{
                                     display: 'flex',
                                     justifyContent: 'center',
-                                    marginBottom: '40px',
+                                    marginBottom: '35px',
                                 }}>
                                     <div style={{
                                         display: 'flex',
-                                        gap: '10px',
+                                        gap: '8px',
                                         background: 'rgba(20, 20, 28, 0.8)',
                                         padding: '8px',
                                         borderRadius: '8px',
                                     }}>
-                                        {['Cover', 'Interior', 'Full Book'].map(view => (
+                                        {[
+                                            { id: 'cover', label: 'Cover' },
+                                            { id: 'interior', label: 'Interior' },
+                                            { id: 'fullbook', label: 'Full Book' }
+                                        ].map(mode => (
                                             <button 
-                                                key={view} 
-                                                onClick={() => setPreviewMode(view.toLowerCase().replace(' ', ''))}
+                                                key={mode.id}
+                                                onClick={() => setPreviewMode(mode.id)}
                                                 style={{
                                                     padding: '12px 24px',
-                                                    background: previewMode === view.toLowerCase().replace(' ', '') 
+                                                    background: previewMode === mode.id 
                                                         ? 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)'
                                                         : 'transparent',
                                                     border: 'none',
                                                     borderRadius: '4px',
-                                                    color: previewMode === view.toLowerCase().replace(' ', '') ? '#0D0D0D' : '#808080',
+                                                    color: previewMode === mode.id ? '#0D0D0D' : '#808080',
                                                     fontSize: '12px',
                                                     letterSpacing: '1px',
                                                     textTransform: 'uppercase',
                                                     cursor: 'pointer',
                                                     fontFamily: 'inherit',
-                                                    fontWeight: previewMode === view.toLowerCase().replace(' ', '') ? '600' : '400',
+                                                    fontWeight: previewMode === mode.id ? '600' : '400',
+                                                    transition: 'all 0.3s ease',
                                                 }}
                                             >
-                                                {view}
+                                                {mode.label}
                                             </button>
                                         ))}
                                     </div>
                                 </div>
 
-                                <div style={{
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    gap: '30px',
-                                    overflowX: 'auto',
-                                    padding: '20px 0',
-                                }}>
-                                    {/* Book Spread Preview */}
+                                {/* COVER Preview */}
+                                {previewMode === 'cover' && (
                                     <div style={{
                                         display: 'flex',
-                                        boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
-                                        borderRadius: '4px',
-                                        overflow: 'hidden',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        animation: 'fadeIn 0.3s ease',
                                     }}>
-                                        {/* Left Page */}
+                                        <h3 style={{ color: '#D4AF37', fontSize: '14px', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '25px' }}>
+                                            Cover Preview
+                                        </h3>
+                                        <BookCover size="large" />
+                                    </div>
+                                )}
+
+                                {/* INTERIOR Preview */}
+                                {previewMode === 'interior' && (
+                                    <div style={{
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        animation: 'fadeIn 0.3s ease',
+                                    }}>
                                         <div style={{
-                                            width: '320px',
-                                            minWidth: '320px',
-                                            height: '450px',
+                                            width: '100%',
+                                            maxWidth: '700px',
                                             background: '#FAF8F5',
-                                            padding: '50px 40px',
-                                            borderRight: '1px solid #E5E0D8',
+                                            borderRadius: '4px',
+                                            padding: '50px 60px',
+                                            boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
                                             fontFamily: 'Georgia, serif',
                                         }}>
-                                            <p style={{
-                                                fontSize: '10px',
-                                                color: '#888',
-                                                textAlign: 'center',
-                                                marginBottom: '30px',
-                                                letterSpacing: '1px',
-                                            }}>
+                                            <p style={{ fontSize: '10px', color: '#888', textAlign: 'center', marginBottom: '30px', letterSpacing: '1px' }}>
                                                 12
                                             </p>
-                                            <p style={{
-                                                fontSize: '13px',
-                                                color: '#2A2A2A',
-                                                lineHeight: '1.8',
-                                                textAlign: 'justify',
-                                            }}>
+                                            <p style={{ fontSize: '14px', color: '#2A2A2A', lineHeight: '1.9', textAlign: 'justify' }}>
                                                 <span style={{
                                                     float: 'left',
-                                                    fontSize: '48px',
+                                                    fontSize: '52px',
                                                     lineHeight: '0.8',
-                                                    paddingRight: '8px',
+                                                    paddingRight: '10px',
                                                     color: '#D4AF37',
                                                     fontFamily: "'Playfair Display', Georgia, serif",
                                                 }}>T</span>
-                                                he morning light filtered through the ancient windows, casting long shadows across the weathered floorboards. She stood there, breath held, knowing that the next few moments would change everything.
+                                                he morning light filtered through the ancient windows, casting long shadows across the weathered floorboards. She stood there, breath held, knowing that the next few moments would change everything. The letter trembled in her hands as she read the words that would alter the course of her life forever.
                                             </p>
-                                            <p style={{
-                                                fontSize: '13px',
-                                                color: '#2A2A2A',
-                                                lineHeight: '1.8',
-                                                textAlign: 'justify',
-                                                marginTop: '20px',
-                                            }}>
-                                                Years of searching had led to this single moment. A lifetime of questions waiting to be answered.
+                                            <p style={{ fontSize: '14px', color: '#2A2A2A', lineHeight: '1.9', textAlign: 'justify', marginTop: '20px' }}>
+                                                Years of searching had led to this single moment. A lifetime of questions waiting to be answered. The room fell silent as she turned the page, her heart racing with anticipation.
                                             </p>
-                                        </div>
-                                        
-                                        {/* Right Page */}
-                                        <div style={{
-                                            width: '320px',
-                                            minWidth: '320px',
-                                            height: '450px',
-                                            background: '#FAF8F5',
-                                            padding: '50px 40px',
-                                            fontFamily: 'Georgia, serif',
-                                        }}>
-                                            <p style={{
-                                                fontSize: '13px',
-                                                color: '#2A2A2A',
-                                                lineHeight: '1.8',
-                                                textAlign: 'justify',
-                                            }}>
-                                                "I never thought this day would come," she whispered to the empty room. But the room wasn't empty — it was full of memories, of possibilities.
-                                            </p>
-                                            <p style={{
-                                                fontSize: '13px',
-                                                color: '#2A2A2A',
-                                                lineHeight: '1.8',
-                                                textAlign: 'justify',
-                                                marginTop: '20px',
-                                            }}>
-                                                She folded the letter carefully and placed it close to her heart. It was time to begin the journey she had always feared.
-                                            </p>
-                                            <div style={{
-                                                textAlign: 'center',
-                                                marginTop: '40px',
-                                                color: '#D4AF37',
-                                                fontSize: '16px',
-                                            }}>
+                                            <div style={{ textAlign: 'center', marginTop: '40px', color: '#D4AF37', fontSize: '18px' }}>
                                                 ❧
                                             </div>
-                                            <p style={{
-                                                fontSize: '10px',
-                                                color: '#888',
-                                                textAlign: 'center',
-                                                marginTop: '80px',
-                                                letterSpacing: '1px',
-                                            }}>
-                                                13
-                                            </p>
                                         </div>
                                     </div>
-                                </div>
+                                )}
 
+                                {/* FULL BOOK Preview */}
+                                {previewMode === 'fullbook' && (
+                                    <div style={{
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        gap: '30px',
+                                        flexWrap: 'wrap',
+                                        animation: 'fadeIn 0.3s ease',
+                                    }}>
+                                        {/* Cover */}
+                                        <div style={{ textAlign: 'center' }}>
+                                            <p style={{ color: '#707070', fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '15px' }}>Cover</p>
+                                            <BookCover size="small" />
+                                        </div>
+                                        
+                                        {/* Interior Spread */}
+                                        <div style={{ textAlign: 'center' }}>
+                                            <p style={{ color: '#707070', fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '15px' }}>Interior Spread</p>
+                                            <div style={{
+                                                display: 'flex',
+                                                boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+                                                borderRadius: '4px',
+                                                overflow: 'hidden',
+                                            }}>
+                                                {/* Left Page */}
+                                                <div style={{
+                                                    width: '200px',
+                                                    height: '300px',
+                                                    background: '#FAF8F5',
+                                                    padding: '30px 25px',
+                                                    borderRight: '1px solid #E5E0D8',
+                                                    fontFamily: 'Georgia, serif',
+                                                }}>
+                                                    <p style={{ fontSize: '8px', color: '#888', textAlign: 'center', marginBottom: '15px' }}>12</p>
+                                                    <p style={{ fontSize: '10px', color: '#2A2A2A', lineHeight: '1.7', textAlign: 'justify' }}>
+                                                        <span style={{ float: 'left', fontSize: '28px', lineHeight: '0.8', paddingRight: '5px', color: '#D4AF37' }}>T</span>
+                                                        he morning light filtered through the windows. She stood there, breath held, knowing everything would change.
+                                                    </p>
+                                                </div>
+                                                
+                                                {/* Right Page */}
+                                                <div style={{
+                                                    width: '200px',
+                                                    height: '300px',
+                                                    background: '#FAF8F5',
+                                                    padding: '30px 25px',
+                                                    fontFamily: 'Georgia, serif',
+                                                }}>
+                                                    <p style={{ fontSize: '10px', color: '#2A2A2A', lineHeight: '1.7', textAlign: 'justify' }}>
+                                                        Years of searching had led to this moment. A lifetime of questions waiting to be answered.
+                                                    </p>
+                                                    <div style={{ textAlign: 'center', marginTop: '25px', color: '#D4AF37', fontSize: '12px' }}>❧</div>
+                                                    <p style={{ fontSize: '8px', color: '#888', textAlign: 'center', marginTop: '60px' }}>13</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Export Buttons */}
                                 <div style={{
                                     display: 'flex',
                                     justifyContent: 'center',
-                                    gap: '15px',
+                                    gap: '12px',
                                     marginTop: '50px',
                                     flexWrap: 'wrap',
                                 }}>
                                     <button 
                                         onClick={() => exportEbook('pdf')}
                                         style={{
-                                            padding: '16px 32px',
+                                            padding: '14px 28px',
                                             background: 'transparent',
                                             border: '1px solid rgba(212, 175, 55, 0.4)',
                                             color: '#D4AF37',
-                                            fontSize: '12px',
+                                            fontSize: '11px',
                                             letterSpacing: '2px',
                                             textTransform: 'uppercase',
                                             cursor: 'pointer',
                                             fontFamily: 'inherit',
-                                            transition: 'all 0.3s ease',
                                         }}
-                                        onMouseEnter={(e) => e.target.style.background = 'rgba(212, 175, 55, 0.1)'}
-                                        onMouseLeave={(e) => e.target.style.background = 'transparent'}
                                     >
                                         Download PDF
                                     </button>
                                     <button 
                                         onClick={() => exportEbook('epub')}
                                         style={{
-                                            padding: '16px 32px',
+                                            padding: '14px 28px',
                                             background: 'transparent',
                                             border: '1px solid rgba(212, 175, 55, 0.4)',
                                             color: '#D4AF37',
-                                            fontSize: '12px',
+                                            fontSize: '11px',
                                             letterSpacing: '2px',
                                             textTransform: 'uppercase',
                                             cursor: 'pointer',
                                             fontFamily: 'inherit',
-                                            transition: 'all 0.3s ease',
                                         }}
-                                        onMouseEnter={(e) => e.target.style.background = 'rgba(212, 175, 55, 0.1)'}
-                                        onMouseLeave={(e) => e.target.style.background = 'transparent'}
                                     >
                                         Export EPUB
                                     </button>
                                     <button 
                                         onClick={() => exportEbook('kindle')}
                                         style={{
-                                            padding: '16px 32px',
+                                            padding: '14px 28px',
                                             background: 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)',
                                             border: 'none',
                                             color: '#0D0D0D',
-                                            fontSize: '12px',
+                                            fontSize: '11px',
                                             letterSpacing: '2px',
                                             textTransform: 'uppercase',
                                             cursor: 'pointer',
@@ -1633,17 +1469,12 @@
 
                     {/* Footer */}
                     <footer style={{
-                        padding: '40px 60px',
+                        padding: '30px',
                         borderTop: '1px solid rgba(212, 175, 55, 0.1)',
                         textAlign: 'center',
-                        marginTop: '60px',
+                        marginTop: '40px',
                     }}>
-                        <p style={{
-                            fontSize: '12px',
-                            letterSpacing: '2px',
-                            color: '#505050',
-                            textTransform: 'uppercase',
-                        }}>
+                        <p style={{ fontSize: '11px', letterSpacing: '2px', color: '#404040', textTransform: 'uppercase' }}>
                             Premium Ebook Studio • Crafted for Professional Authors
                         </p>
                     </footer>
@@ -1651,7 +1482,7 @@
             );
         };
 
-        // Render the app
+        // Render
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<PremiumEbookStudio />);
     </script>
