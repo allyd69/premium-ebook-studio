@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Ebook Studio | Cinematic Covers & Professional Templates</title>
+    <meta name="description" content="Create stunning ebooks with AI-generated cinematic covers and premium formatting templates">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            background: #0A0A0F;
+            min-height: 100vh;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0D0D0D;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #D4AF37;
+            border-radius: 4px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useCallback, useEffect } = React;
+
+        // Simulated AI Image Generation with realistic delay and placeholder
+        const generateAIImage = async (prompt, style) => {
+            // Simulate API call delay
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // Generate a unique seed based on prompt for consistent "random" results
+            const seed = prompt.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+            
+            // Return placeholder image URL (using picsum for demo - replace with actual AI API)
+            return {
+                url: `https://picsum.photos/seed/${seed}/600/900`,
+                prompt: prompt,
+                style: style,
+                timestamp: new Date().toISOString()
+            };
+        };
+
+        const PremiumEbookStudio = () => {
+            const [activeTab, setActiveTab] = useState('cover');
+            const [coverPrompt, setCoverPrompt] = useState('');
+            const [generatedCover, setGeneratedCover] = useState(null);
+            const [isGenerating, setIsGenerating] = useState(false);
+            const [uploadedDoc, setUploadedDoc] = useState(null);
+            const [selectedTemplate, setSelectedTemplate] = useState('luxury');
+            const [ebookTitle, setEbookTitle] = useState('');
+            const [ebookAuthor, setEbookAuthor] = useState('');
+            const [chapters, setChapters] = useState([]);
+            const [coverStyle, setCoverStyle] = useState('cinematic');
+            const [generatedImages, setGeneratedImages] = useState([]);
+            const [previewMode, setPreviewMode] = useState('full');
+            const [notification, setNotification] = useState(null);
+
+            const templates = [
+                { id: 'luxury', name: 'Luxury Edition', desc: 'Gold accents, elegant serif typography', color: '#D4AF37', gradient: 'linear-gradient(135deg, #D4AF37 0%, #F4E5B2 50%, #D4AF37 100%)' },
+                { id: 'modern', name: 'Modern Minimal', desc: 'Clean lines, contemporary design', color: '#1a1a2e', gradient: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' },
+                { id: 'creative', name: 'Creative Bold', desc: 'Vibrant colors, artistic flair', color: '#FF6B6B', gradient: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%)' },
+                { id: 'professional', name: 'Professional', desc: 'Corporate, authoritative style', color: '#2C3E50', gradient: 'linear-gradient(135deg, #2C3E50 0%, #34495E 100%)' },
+                { id: 'romantic', name: 'Romance', desc: 'Soft, elegant, emotional', color: '#E8B4BC', gradient: 'linear-gradient(135deg, #E8B4BC 0%, #F5D0D5 100%)' },
+                { id: 'thriller', name: 'Thriller Dark', desc: 'Moody, suspenseful atmosphere', color: '#0D0D0D', gradient: 'linear-gradient(135deg, #0D0D0D 0%, #1a1a1a 50%, #2d2d2d 100%)' },
+            ];
+
+            const coverStyles = [
+                { id: 'cinematic', name: 'Cinematic', icon: '🎬', desc: 'Movie-poster quality with dramatic lighting' },
+                { id: 'photorealistic', name: 'Photorealistic', icon: '📷', desc: 'Ultra-realistic photography style' },
+                { id: 'artistic', name: 'Artistic', icon: '🎨', desc: 'Painterly, illustrated aesthetic' },
+                { id: 'minimalist', name: 'Minimalist', icon: '◻️', desc: 'Clean, simple, elegant design' },
+                { id: 'vintage', name: 'Vintage', icon: '📜', desc: 'Classic, timeless appeal' },
+                { id: 'fantasy', name: 'Fantasy', icon: '✨', desc: 'Magical, otherworldly imagery' },
+            ];
+
+            const showNotification = (message, type = 'success') => {
+                setNotification({ message, type });
+                setTimeout(() => setNotification(null), 3000);
+            };
+
+            const handleFileUpload = useCallback((e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const content = event.target.result;
+                        setUploadedDoc({
+                            name: file.name,
+                            content: content,
+                            size: (file.size / 1024).toFixed(2) + ' KB',
+                            type: file.type
+                        });
+                        
+                        // Parse content for chapters
+                        const lines = content.split('\n');
+                        const detectedChapters = [];
+                        let currentChapter = null;
+                        let wordCount = 0;
+                        
+                        lines.forEach((line, idx) => {
+                            const chapterMatch = line.match(/^(Chapter|CHAPTER|Part|PART)\s*(\d+|[IVXLC]+)/i);
+                            if (chapterMatch || line.match(/^#{1,2}\s+/)) {
+                                if (currentChapter) {
+                                    currentChapter.wordCount = wordCount;
+                                    detectedChapters.push(currentChapter);
+                                }
+                                currentChapter = {
+                                    id: detectedChapters.length + 1,
+                                    title: line.replace(/^#+\s*/, '').trim() || `Chapter ${detectedChapters.length + 1}`,
+                                    wordCount: 0
+                                };
+                                wordCount = 0;
+                            } else {
+                                wordCount += line.split(/\s+/).filter(w => w.length > 0).length;
+                            }
+                        });
+                        
+                        if (currentChapter) {
+                            currentChapter.wordCount = wordCount;
+                            detectedChapters.push(currentChapter);
+                        }
+                        
+                        if (detectedChapters.length === 0) {
+                            // If no chapters detected, create one
+                            const totalWords = content.split(/\s+/).filter(w => w.length > 0).length;
+                            detectedChapters.push({
+                                id: 1,
+                                title: 'Full Document',
+                                wordCount: totalWords
+                            });
+                        }
+                        
+                        setChapters(detectedChapters);
+                        showNotification(`Document uploaded: ${detectedChapters.length} section(s) detected`);
+                    };
+                    reader.readAsText(file);
+                }
+            }, []);
+
+            const generateCover = async () => {
+                if (!coverPrompt) {
+                    showNotification('Please enter a cover description', 'error');
+                    return;
+                }
+                
+                setIsGenerating(true);
+                
+                try {
+                    // Build enhanced prompt based on style
+                    const styleEnhancements = {
+                        cinematic: 'cinematic lighting, movie poster quality, dramatic atmosphere, 8k resolution',
+                        photorealistic: 'ultra realistic photograph, professional photography, sharp details, natural lighting',
+                        artistic: 'digital painting, artistic illustration, vibrant colors, brushstroke texture',
+                        minimalist: 'minimalist design, clean composition, negative space, elegant simplicity',
+                        vintage: 'vintage aesthetic, aged texture, sepia tones, classic style, retro feel',
+                        fantasy: 'fantasy art, magical atmosphere, ethereal glow, mystical elements, dreamlike'
+                    };
+                    
+                    const enhancedPrompt = `${coverPrompt}, ${styleEnhancements[coverStyle]}, book cover design`;
+                    
+                    const result = await generateAIImage(enhancedPrompt, coverStyle);
+                    
+                    setGeneratedCover(result);
+                    setGeneratedImages(prev => [...prev, result]);
+                    showNotification('Cover generated successfully!');
+                } catch (error) {
+                    showNotification('Error generating cover. Please try again.', 'error');
+                } finally {
+                    setIsGenerating(false);
+                }
+            };
+
+            const exportEbook = (format) => {
+                showNotification(`Preparing ${format.toUpperCase()} export...`);
+                // In production, this would generate actual files
+                setTimeout(() => {
+                    showNotification(`${format.toUpperCase()} ready for download!`);
+                }, 2000);
+            };
+
+            const TabButton = ({ id, label, icon }) => (
+                <button
+                    onClick={() => setActiveTab(id)}
+                    style={{
+                        padding: '16px 32px',
+                        border: 'none',
+                        background: activeTab === id ? 'linear-gradient(135deg, #D4AF37 0%, #F4E5B2 50%, #D4AF37 100%)' : 'transparent',
+                        color: activeTab === id ? '#0D0D0D' : '#A0A0A0',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        letterSpacing: '2px',
+                        textTransform: 'uppercase',
+                        cursor: 'pointer',
+                        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                        fontFamily: "'Cormorant Garamond', Georgia, serif",
+                        position: 'relative',
+                        overflow: 'hidden',
+                        borderRadius: activeTab === id ? '4px' : '0',
+                    }}
+                    onMouseEnter={(e) => {
+                        if (activeTab !== id) {
+                            e.target.style.color = '#D4AF37';
+                        }
+                    }}
+                    onMouseLeave={(e) => {
+                        if (activeTab !== id) {
+                            e.target.style.color = '#A0A0A0';
+                        }
+                    }}
+                >
+                    <span style={{ marginRight: '8px' }}>{icon}</span>
+                    {label}
+                </button>
+            );
+
+            return (
+                <div style={{
+                    minHeight: '100vh',
+                    background: 'linear-gradient(180deg, #0A0A0F 0%, #151520 50%, #0D0D12 100%)',
+                    fontFamily: "'Cormorant Garamond', Georgia, serif",
+                    color: '#E8E8E8',
+                    position: 'relative',
+                    overflow: 'hidden',
+                }}>
+                    {/* Notification */}
+                    {notification && (
+                        <div style={{
+                            position: 'fixed',
+                            top: '20px',
+                            right: '20px',
+                            padding: '16px 24px',
+                            background: notification.type === 'error' 
+                                ? 'linear-gradient(135deg, #8B0000 0%, #5C0000 100%)'
+                                : 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)',
+                            color: notification.type === 'error' ? '#FFF' : '#0D0D0D',
+                            borderRadius: '4px',
+                            boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
+                            zIndex: 1000,
+                            animation: 'fadeIn 0.3s ease',
+                            fontWeight: '600',
+                            letterSpacing: '1px',
+                        }}>
+                            {notification.message}
+                        </div>
+                    )}
+
+                    {/* Ambient Background Effects */}
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'radial-gradient(ellipse at 20% 20%, rgba(212, 175, 55, 0.03) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(212, 175, 55, 0.02) 0%, transparent 50%)',
+                        pointerEvents: 'none',
+                    }} />
+
+                    {/* Header */}
+                    <header style={{
+                        padding: '40px 60px',
+                        borderBottom: '1px solid rgba(212, 175, 55, 0.15)',
+                        background: 'rgba(10, 10, 15, 0.8)',
+                        backdropFilter: 'blur(20px)',
+                        position: 'relative',
+                        zIndex: 10,
+                    }}>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            maxWidth: '1400px',
+                            margin: '0 auto',
+                            flexWrap: 'wrap',
+                            gap: '20px',
+                        }}>
+                            <div>
+                                <h1 style={{
+                                    fontSize: 'clamp(24px, 4vw, 32px)',
+                                    fontWeight: '300',
+                                    letterSpacing: '8px',
+                                    textTransform: 'uppercase',
+                                    background: 'linear-gradient(135deg, #D4AF37 0%, #F4E5B2 40%, #D4AF37 80%, #AA8C2C 100%)',
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                    backgroundClip: 'text',
+                                    margin: 0,
+                                }}>
+                                    Premium Ebook Studio
+                                </h1>
+                                <p style={{
+                                    fontSize: '12px',
+                                    letterSpacing: '4px',
+                                    color: '#707070',
+                                    marginTop: '8px',
+                                    textTransform: 'uppercase',
+                                }}>
+                                    AI-Powered Covers • Premium Templates • Professional Publishing
+                                </p>
+                            </div>
+                            <div style={{
+                                display: 'flex',
+                                gap: '12px',
+                                flexWrap: 'wrap',
+                            }}>
+                                <button 
+                                    onClick={() => showNotification('Project saved!')}
+                                    style={{
+                                        padding: '14px 28px',
+                                        background: 'transparent',
+                                        border: '1px solid rgba(212, 175, 55, 0.4)',
+                                        color: '#D4AF37',
+                                        fontSize: '12px',
+                                        letterSpacing: '2px',
+                                        textTransform: 'uppercase',
+                                        cursor: 'pointer',
+                                        fontFamily: 'inherit',
+                                        transition: 'all 0.3s ease',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.target.style.background = 'rgba(212, 175, 55, 0.1)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.target.style.background = 'transparent';
+                                    }}
+                                >
+                                    Save Project
+                                </button>
+                                <button 
+                                    onClick={() => exportEbook('pdf')}
+                                    style={{
+                                        padding: '14px 28px',
+                                        background: 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)',
+                                        border: 'none',
+                                        color: '#0D0D0D',
+                                        fontSize: '12px',
+                                        letterSpacing: '2px',
+                                        textTransform: 'uppercase',
+                                        cursor: 'pointer',
+                                        fontFamily: 'inherit',
+                                        fontWeight: '600',
+                                        transition: 'all 0.3s ease',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.target.style.transform = 'translateY(-2px)';
+                                        e.target.style.boxShadow = '0 10px 30px rgba(212, 175, 55, 0.3)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.target.style.transform = 'translateY(0)';
+                                        e.target.style.boxShadow = 'none';
+                                    }}
+                                >
+                                    Export Ebook
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Navigation Tabs */}
+                    <nav style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        gap: '4px',
+                        padding: '30px 20px',
+                        background: 'rgba(15, 15, 20, 0.6)',
+                        borderBottom: '1px solid rgba(212, 175, 55, 0.1)',
+                        flexWrap: 'wrap',
+                    }}>
+                        <TabButton id="cover" label="Cover Design" icon="📖" />
+                        <TabButton id="upload" label="Upload Draft" icon="📤" />
+                        <TabButton id="template" label="Templates" icon="✨" />
+                        <TabButton id="format" label="Format & Style" icon="🎨" />
+                        <TabButton id="preview" label="Preview" icon="👁" />
+                    </nav>
+
+                    {/* Main Content */}
+                    <main style={{
+                        maxWidth: '1400px',
+                        margin: '0 auto',
+                        padding: '50px 20px',
+                    }}>
+                        
+                        {/* Cover Design Tab */}
+                        {activeTab === 'cover' && (
+                            <div style={{ animation: 'fadeIn 0.5s ease' }}>
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+                                    gap: '50px',
+                                }}>
+                                    {/* Cover Generator Panel */}
+                                    <div style={{
+                                        background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
+                                        border: '1px solid rgba(212, 175, 55, 0.2)',
+                                        borderRadius: '4px',
+                                        padding: '40px',
+                                    }}>
+                                        <h2 style={{
+                                            fontSize: '20px',
+                                            letterSpacing: '4px',
+                                            textTransform: 'uppercase',
+                                            color: '#D4AF37',
+                                            marginBottom: '30px',
+                                            fontWeight: '400',
+                                        }}>
+                                            🎬 AI Cover Generator
+                                        </h2>
+
+                                        {/* Cover Style Selection */}
+                                        <div style={{ marginBottom: '30px' }}>
+                                            <label style={{
+                                                display: 'block',
+                                                fontSize: '11px',
+                                                letterSpacing: '2px',
+                                                textTransform: 'uppercase',
+                                                color: '#808080',
+                                                marginBottom: '12px',
+                                            }}>
+                                                Cover Style
+                                            </label>
+                                            <div style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: 'repeat(3, 1fr)',
+                                                gap: '10px',
+                                            }}>
+                                                {coverStyles.map(style => (
+                                                    <button
+                                                        key={style.id}
+                                                        onClick={() => setCoverStyle(style.id)}
+                                                        style={{
+                                                            padding: '16px 12px',
+                                                            background: coverStyle === style.id 
+                                                                ? 'linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0.1) 100%)'
+                                                                : 'rgba(30, 30, 40, 0.5)',
+                                                            border: coverStyle === style.id 
+                                                                ? '1px solid rgba(212, 175, 55, 0.5)'
+                                                                : '1px solid rgba(80, 80, 100, 0.3)',
+                                                            borderRadius: '4px',
+                                                            color: coverStyle === style.id ? '#D4AF37' : '#909090',
+                                                            fontSize: '12px',
+                                                            cursor: 'pointer',
+                                                            fontFamily: 'inherit',
+                                                            textAlign: 'center',
+                                                            transition: 'all 0.3s ease',
+                                                        }}
+                                                    >
+                                                        <div style={{ fontSize: '20px', marginBottom: '6px' }}>{style.icon}</div>
+                                                        {style.name}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <p style={{
+                                                fontSize: '12px',
+                                                color: '#606060',
+                                                marginTop: '10px',
+                                                fontStyle: 'italic',
+                                            }}>
+                                                {coverStyles.find(s => s.id === coverStyle)?.desc}
+                                            </p>
+                                        </div>
+
+                                        {/* Book Details */}
+                                        <div style={{ marginBottom: '25px' }}>
+                                            <label style={{
+                                                display: 'block',
+                                                fontSize: '11px',
+                                                letterSpacing: '2px',
+                                                textTransform: 'uppercase',
+                                                color: '#808080',
+                                                marginBottom: '10px',
+                                            }}>
+                                                Book Title
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={ebookTitle}
+                                                onChange={(e) => setEbookTitle(e.target.value)}
+                                                placeholder="Enter your book title..."
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '16px 20px',
+                                                    background: 'rgba(20, 20, 30, 0.8)',
+                                                    border: '1px solid rgba(100, 100, 120, 0.3)',
+                                                    borderRadius: '4px',
+                                                    color: '#E8E8E8',
+                                                    fontSize: '16px',
+                                                    fontFamily: 'inherit',
+                                                    outline: 'none',
+                                                    boxSizing: 'border-box',
+                                                }}
+                                                onFocus={(e) => e.target.style.borderColor = 'rgba(212, 175, 55, 0.5)'}
+                                                onBlur={(e) => e.target.style.borderColor = 'rgba(100, 100, 120, 0.3)'}
+                                            />
+                                        </div>
+
+                                        <div style={{ marginBottom: '25px' }}>
+                                            <label style={{
+                                                display: 'block',
+                                                fontSize: '11px',
+                                                letterSpacing: '2px',
+                                                textTransform: 'uppercase',
+                                                color: '#808080',
+                                                marginBottom: '10px',
+                                            }}>
+                                                Author Name
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={ebookAuthor}
+                                                onChange={(e) => setEbookAuthor(e.target.value)}
+                                                placeholder="Author name..."
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '16px 20px',
+                                                    background: 'rgba(20, 20, 30, 0.8)',
+                                                    border: '1px solid rgba(100, 100, 120, 0.3)',
+                                                    borderRadius: '4px',
+                                                    color: '#E8E8E8',
+                                                    fontSize: '16px',
+                                                    fontFamily: 'inherit',
+                                                    outline: 'none',
+                                                    boxSizing: 'border-box',
+                                                }}
+                                                onFocus={(e) => e.target.style.borderColor = 'rgba(212, 175, 55, 0.5)'}
+                                                onBlur={(e) => e.target.style.borderColor = 'rgba(100, 100, 120, 0.3)'}
+                                            />
+                                        </div>
+
+                                        {/* Image Prompt */}
+                                        <div style={{ marginBottom: '25px' }}>
+                                            <label style={{
+                                                display: 'block',
+                                                fontSize: '11px',
+                                                letterSpacing: '2px',
+                                                textTransform: 'uppercase',
+                                                color: '#808080',
+                                                marginBottom: '10px',
+                                            }}>
+                                                Cover Image Description
+                                            </label>
+                                            <textarea
+                                                value={coverPrompt}
+                                                onChange={(e) => setCoverPrompt(e.target.value)}
+                                                placeholder="Describe your ideal cover image... e.g., 'A mysterious woman silhouetted against a golden sunset, standing at the edge of a cliff overlooking a vast ocean, dramatic clouds'"
+                                                rows={4}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '16px 20px',
+                                                    background: 'rgba(20, 20, 30, 0.8)',
+                                                    border: '1px solid rgba(100, 100, 120, 0.3)',
+                                                    borderRadius: '4px',
+                                                    color: '#E8E8E8',
+                                                    fontSize: '15px',
+                                                    fontFamily: 'inherit',
+                                                    outline: 'none',
+                                                    resize: 'vertical',
+                                                    lineHeight: '1.6',
+                                                    boxSizing: 'border-box',
+                                                }}
+                                                onFocus={(e) => e.target.style.borderColor = 'rgba(212, 175, 55, 0.5)'}
+                                                onBlur={(e) => e.target.style.borderColor = 'rgba(100, 100, 120, 0.3)'}
+                                            />
+                                        </div>
+
+                                        <button
+                                            onClick={generateCover}
+                                            disabled={isGenerating}
+                                            style={{
+                                                width: '100%',
+                                                padding: '18px',
+                                                background: isGenerating 
+                                                    ? 'linear-gradient(90deg, #555 0%, #666 50%, #555 100%)'
+                                                    : 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)',
+                                                backgroundSize: isGenerating ? '200% 100%' : '100% 100%',
+                                                animation: isGenerating ? 'shimmer 1.5s infinite' : 'none',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                color: '#0D0D0D',
+                                                fontSize: '14px',
+                                                letterSpacing: '3px',
+                                                textTransform: 'uppercase',
+                                                cursor: isGenerating ? 'wait' : 'pointer',
+                                                fontFamily: 'inherit',
+                                                fontWeight: '600',
+                                                transition: 'all 0.3s ease',
+                                            }}
+                                        >
+                                            {isGenerating ? '◐ Generating AI Cover...' : '✦ Generate Cover Image'}
+                                        </button>
+
+                                        {/* Quick Prompts */}
+                                        <div style={{ marginTop: '25px' }}>
+                                            <p style={{
+                                                fontSize: '11px',
+                                                letterSpacing: '2px',
+                                                textTransform: 'uppercase',
+                                                color: '#606060',
+                                                marginBottom: '10px',
+                                            }}>
+                                                Quick Prompts:
+                                            </p>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                                {[
+                                                    'Sunset over mountains',
+                                                    'Mysterious forest path',
+                                                    'Ocean waves at night',
+                                                    'City skyline',
+                                                    'Romantic garden',
+                                                ].map(prompt => (
+                                                    <button
+                                                        key={prompt}
+                                                        onClick={() => setCoverPrompt(prompt)}
+                                                        style={{
+                                                            padding: '8px 12px',
+                                                            background: 'rgba(30, 30, 40, 0.6)',
+                                                            border: '1px solid rgba(80, 80, 100, 0.3)',
+                                                            borderRadius: '20px',
+                                                            color: '#909090',
+                                                            fontSize: '11px',
+                                                            cursor: 'pointer',
+                                                            fontFamily: 'inherit',
+                                                            transition: 'all 0.2s ease',
+                                                        }}
+                                                        onMouseEnter={(e) => {
+                                                            e.target.style.borderColor = 'rgba(212, 175, 55, 0.4)';
+                                                            e.target.style.color = '#D4AF37';
+                                                        }}
+                                                        onMouseLeave={(e) => {
+                                                            e.target.style.borderColor = 'rgba(80, 80, 100, 0.3)';
+                                                            e.target.style.color = '#909090';
+                                                        }}
+                                                    >
+                                                        {prompt}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Cover Preview */}
+                                    <div style={{
+                                        background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
+                                        border: '1px solid rgba(212, 175, 55, 0.2)',
+                                        borderRadius: '4px',
+                                        padding: '40px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                    }}>
+                                        <h2 style={{
+                                            fontSize: '20px',
+                                            letterSpacing: '4px',
+                                            textTransform: 'uppercase',
+                                            color: '#D4AF37',
+                                            marginBottom: '30px',
+                                            fontWeight: '400',
+                                            alignSelf: 'flex-start',
+                                        }}>
+                                            Cover Preview
+                                        </h2>
+
+                                        {/* Book Cover Mockup */}
+                                        <div style={{
+                                            width: '280px',
+                                            height: '420px',
+                                            background: generatedCover 
+                                                ? `url(${generatedCover.url}) center/cover`
+                                                : 'linear-gradient(145deg, #252530 0%, #1a1a22 100%)',
+                                            borderRadius: '4px',
+                                            boxShadow: '20px 20px 60px rgba(0,0,0,0.5), -5px -5px 20px rgba(212, 175, 55, 0.05)',
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            justifyContent: 'space-between',
+                                        }}>
+                                            {/* Overlay for text */}
+                                            <div style={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                background: generatedCover 
+                                                    ? 'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.6) 100%)'
+                                                    : 'transparent',
+                                                padding: '30px 25px',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                justifyContent: 'space-between',
+                                            }}>
+                                                {/* Top Decorative */}
+                                                <div style={{
+                                                    height: '6px',
+                                                    background: 'linear-gradient(90deg, #D4AF37, #F4E5B2, #D4AF37)',
+                                                    position: 'absolute',
+                                                    top: 0,
+                                                    left: 0,
+                                                    right: 0,
+                                                }} />
+                                                
+                                                {generatedCover || ebookTitle ? (
+                                                    <>
+                                                        <div style={{ textAlign: 'center', marginTop: '40px' }}>
+                                                            <div style={{
+                                                                fontSize: '11px',
+                                                                letterSpacing: '3px',
+                                                                color: '#D4AF37',
+                                                                marginBottom: '15px',
+                                                                textTransform: 'uppercase',
+                                                                textShadow: '0 2px 10px rgba(0,0,0,0.8)',
+                                                            }}>
+                                                                {coverStyle} Edition
+                                                            </div>
+                                                            <h3 style={{
+                                                                fontSize: '26px',
+                                                                fontWeight: '400',
+                                                                color: '#FFFFFF',
+                                                                lineHeight: '1.3',
+                                                                margin: 0,
+                                                                textShadow: '0 2px 20px rgba(0,0,0,0.9)',
+                                                            }}>
+                                                                {ebookTitle || 'Your Title'}
+                                                            </h3>
+                                                        </div>
+                                                        <div style={{ textAlign: 'center' }}>
+                                                            <div style={{
+                                                                width: '50px',
+                                                                height: '1px',
+                                                                background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)',
+                                                                margin: '0 auto 15px',
+                                                            }} />
+                                                            <p style={{
+                                                                fontSize: '14px',
+                                                                letterSpacing: '2px',
+                                                                color: '#E0E0E0',
+                                                                margin: 0,
+                                                                textTransform: 'uppercase',
+                                                                textShadow: '0 2px 10px rgba(0,0,0,0.8)',
+                                                            }}>
+                                                                {ebookAuthor || 'Author Name'}
+                                                            </p>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        height: '100%',
+                                                        color: '#505060',
+                                                    }}>
+                                                        <div style={{ 
+                                                            fontSize: '48px', 
+                                                            marginBottom: '20px', 
+                                                            opacity: 0.5,
+                                                            animation: 'float 3s ease-in-out infinite',
+                                                        }}>
+                                                            📚
+                                                        </div>
+                                                        <p style={{
+                                                            fontSize: '12px',
+                                                            letterSpacing: '2px',
+                                                            textTransform: 'uppercase',
+                                                            textAlign: 'center',
+                                                        }}>
+                                                            Generate a cover<br />to see preview
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {generatedCover && (
+                                            <div style={{
+                                                marginTop: '30px',
+                                                display: 'flex',
+                                                gap: '12px',
+                                                flexWrap: 'wrap',
+                                                justifyContent: 'center',
+                                            }}>
+                                                <button 
+                                                    onClick={generateCover}
+                                                    style={{
+                                                        padding: '12px 24px',
+                                                        background: 'transparent',
+                                                        border: '1px solid rgba(212, 175, 55, 0.4)',
+                                                        color: '#D4AF37',
+                                                        fontSize: '11px',
+                                                        letterSpacing: '2px',
+                                                        textTransform: 'uppercase',
+                                                        cursor: 'pointer',
+                                                        fontFamily: 'inherit',
+                                                        transition: 'all 0.3s ease',
+                                                    }}
+                                                    onMouseEnter={(e) => e.target.style.background = 'rgba(212, 175, 55, 0.1)'}
+                                                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                                                >
+                                                    Regenerate
+                                                </button>
+                                                <button 
+                                                    onClick={() => showNotification('Cover applied to ebook!')}
+                                                    style={{
+                                                        padding: '12px 24px',
+                                                        background: 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)',
+                                                        border: 'none',
+                                                        color: '#0D0D0D',
+                                                        fontSize: '11px',
+                                                        letterSpacing: '2px',
+                                                        textTransform: 'uppercase',
+                                                        cursor: 'pointer',
+                                                        fontFamily: 'inherit',
+                                                        fontWeight: '600',
+                                                    }}
+                                                >
+                                                    Use This Cover
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {/* Generated Images History */}
+                                        {generatedImages.length > 1 && (
+                                            <div style={{ marginTop: '30px', width: '100%' }}>
+                                                <p style={{
+                                                    fontSize: '11px',
+                                                    letterSpacing: '2px',
+                                                    textTransform: 'uppercase',
+                                                    color: '#606060',
+                                                    marginBottom: '12px',
+                                                }}>
+                                                    Previous Generations:
+                                                </p>
+                                                <div style={{
+                                                    display: 'flex',
+                                                    gap: '10px',
+                                                    overflowX: 'auto',
+                                                    paddingBottom: '10px',
+                                                }}>
+                                                    {generatedImages.slice(-5).map((img, idx) => (
+                                                        <div
+                                                            key={idx}
+                                                            onClick={() => setGeneratedCover(img)}
+                                                            style={{
+                                                                width: '60px',
+                                                                height: '90px',
+                                                                background: `url(${img.url}) center/cover`,
+                                                                borderRadius: '4px',
+                                                                cursor: 'pointer',
+                                                                border: generatedCover?.timestamp === img.timestamp 
+                                                                    ? '2px solid #D4AF37'
+                                                                    : '2px solid transparent',
+                                                                transition: 'all 0.3s ease',
+                                                                flexShrink: 0,
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Upload Draft Tab */}
+                        {activeTab === 'upload' && (
+                            <div style={{ animation: 'fadeIn 0.5s ease' }}>
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+                                    gap: '50px',
+                                }}>
+                                    {/* Upload Panel */}
+                                    <div style={{
+                                        background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
+                                        border: '1px solid rgba(212, 175, 55, 0.2)',
+                                        borderRadius: '4px',
+                                        padding: '40px',
+                                    }}>
+                                        <h2 style={{
+                                            fontSize: '20px',
+                                            letterSpacing: '4px',
+                                            textTransform: 'uppercase',
+                                            color: '#D4AF37',
+                                            marginBottom: '30px',
+                                            fontWeight: '400',
+                                        }}>
+                                            Upload Your Manuscript
+                                        </h2>
+
+                                        <div 
+                                            style={{
+                                                border: '2px dashed rgba(212, 175, 55, 0.3)',
+                                                borderRadius: '8px',
+                                                padding: '60px 40px',
+                                                textAlign: 'center',
+                                                background: 'rgba(212, 175, 55, 0.02)',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.3s ease',
+                                            }}
+                                            onClick={() => document.getElementById('file-upload').click()}
+                                            onDragOver={(e) => {
+                                                e.preventDefault();
+                                                e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.6)';
+                                                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.05)';
+                                            }}
+                                            onDragLeave={(e) => {
+                                                e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.3)';
+                                                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.02)';
+                                            }}
+                                            onDrop={(e) => {
+                                                e.preventDefault();
+                                                e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.3)';
+                                                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.02)';
+                                                const file = e.dataTransfer.files[0];
+                                                if (file) {
+                                                    handleFileUpload({ target: { files: [file] } });
+                                                }
+                                            }}
+                                        >
+                                            <input
+                                                id="file-upload"
+                                                type="file"
+                                                accept=".txt,.doc,.docx,.rtf,.md"
+                                                onChange={handleFileUpload}
+                                                style={{ display: 'none' }}
+                                            />
+                                            <div style={{ fontSize: '48px', marginBottom: '20px' }}>📄</div>
+                                            <p style={{
+                                                fontSize: '16px',
+                                                color: '#D4AF37',
+                                                marginBottom: '10px',
+                                            }}>
+                                                Drop your manuscript here
+                                            </p>
+                                            <p style={{
+                                                fontSize: '13px',
+                                                color: '#707070',
+                                                letterSpacing: '1px',
+                                            }}>
+                                                or click to browse • TXT, DOC, DOCX, RTF, MD
+                                            </p>
+                                        </div>
+
+                                        {uploadedDoc && (
+                                            <div style={{
+                                                marginTop: '30px',
+                                                padding: '20px',
+                                                background: 'rgba(212, 175, 55, 0.08)',
+                                                border: '1px solid rgba(212, 175, 55, 0.2)',
+                                                borderRadius: '4px',
+                                            }}>
+                                                <div style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    flexWrap: 'wrap',
+                                                    gap: '15px',
+                                                }}>
+                                                    <div>
+                                                        <p style={{
+                                                            fontSize: '14px',
+                                                            color: '#D4AF37',
+                                                            margin: '0 0 5px 0',
+                                                        }}>
+                                                            ✓ {uploadedDoc.name}
+                                                        </p>
+                                                        <p style={{
+                                                            fontSize: '12px',
+                                                            color: '#808080',
+                                                            margin: 0,
+                                                        }}>
+                                                            {uploadedDoc.size}
+                                                        </p>
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => showNotification('Document processed!')}
+                                                        style={{
+                                                            padding: '10px 20px',
+                                                            background: 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)',
+                                                            border: 'none',
+                                                            borderRadius: '4px',
+                                                            color: '#0D0D0D',
+                                                            fontSize: '11px',
+                                                            letterSpacing: '1px',
+                                                            textTransform: 'uppercase',
+                                                            cursor: 'pointer',
+                                                            fontFamily: 'inherit',
+                                                            fontWeight: '600',
+                                                        }}
+                                                    >
+                                                        Process Document
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Chapters Panel */}
+                                    <div style={{
+                                        background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
+                                        border: '1px solid rgba(212, 175, 55, 0.2)',
+                                        borderRadius: '4px',
+                                        padding: '40px',
+                                    }}>
+                                        <h2 style={{
+                                            fontSize: '20px',
+                                            letterSpacing: '4px',
+                                            textTransform: 'uppercase',
+                                            color: '#D4AF37',
+                                            marginBottom: '30px',
+                                            fontWeight: '400',
+                                        }}>
+                                            Document Structure
+                                        </h2>
+
+                                        {chapters.length > 0 ? (
+                                            <div>
+                                                <div style={{
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    marginBottom: '20px',
+                                                    padding: '15px 20px',
+                                                    background: 'rgba(212, 175, 55, 0.1)',
+                                                    borderRadius: '4px',
+                                                }}>
+                                                    <span style={{ color: '#D4AF37', fontSize: '13px' }}>
+                                                        {chapters.length} Section(s) Detected
+                                                    </span>
+                                                    <span style={{ color: '#808080', fontSize: '13px' }}>
+                                                        {chapters.reduce((acc, ch) => acc + ch.wordCount, 0).toLocaleString()} words
+                                                    </span>
+                                                </div>
+                                                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                                                    {chapters.map((chapter) => (
+                                                        <div key={chapter.id} style={{
+                                                            padding: '18px 20px',
+                                                            background: 'rgba(25, 25, 35, 0.6)',
+                                                            border: '1px solid rgba(80, 80, 100, 0.2)',
+                                                            borderRadius: '4px',
+                                                            marginBottom: '10px',
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
+                                                            alignItems: 'center',
+                                                            transition: 'all 0.3s ease',
+                                                        }}>
+                                                            <div>
+                                                                <p style={{
+                                                                    fontSize: '15px',
+                                                                    color: '#E0E0E0',
+                                                                    margin: 0,
+                                                                }}>
+                                                                    {chapter.title}
+                                                                </p>
+                                                            </div>
+                                                            <span style={{
+                                                                fontSize: '12px',
+                                                                color: '#707070',
+                                                                letterSpacing: '1px',
+                                                            }}>
+                                                                {chapter.wordCount.toLocaleString()} words
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div style={{
+                                                textAlign: 'center',
+                                                padding: '60px 20px',
+                                                color: '#505060',
+                                            }}>
+                                                <div style={{ fontSize: '40px', marginBottom: '20px', opacity: 0.5 }}>📑</div>
+                                                <p style={{
+                                                    fontSize: '13px',
+                                                    letterSpacing: '1px',
+                                                }}>
+                                                    Upload a document to see its structure
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Template Selection Tab */}
+                        {activeTab === 'template' && (
+                            <div style={{ animation: 'fadeIn 0.5s ease' }}>
+                                <h2 style={{
+                                    fontSize: '20px',
+                                    letterSpacing: '4px',
+                                    textTransform: 'uppercase',
+                                    color: '#D4AF37',
+                                    marginBottom: '40px',
+                                    fontWeight: '400',
+                                    textAlign: 'center',
+                                }}>
+                                    Select Premium Template
+                                </h2>
+
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                                    gap: '25px',
+                                }}>
+                                    {templates.map(template => (
+                                        <div
+                                            key={template.id}
+                                            onClick={() => {
+                                                setSelectedTemplate(template.id);
+                                                showNotification(`${template.name} template selected!`);
+                                            }}
+                                            style={{
+                                                background: selectedTemplate === template.id 
+                                                    ? 'linear-gradient(145deg, rgba(212, 175, 55, 0.15) 0%, rgba(20, 20, 28, 0.95) 100%)'
+                                                    : 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
+                                                border: selectedTemplate === template.id 
+                                                    ? '2px solid rgba(212, 175, 55, 0.6)'
+                                                    : '1px solid rgba(80, 80, 100, 0.2)',
+                                                borderRadius: '8px',
+                                                padding: '30px',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.4s ease',
+                                                position: 'relative',
+                                                overflow: 'hidden',
+                                            }}
+                                        >
+                                            {selectedTemplate === template.id && (
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    top: '15px',
+                                                    right: '15px',
+                                                    width: '24px',
+                                                    height: '24px',
+                                                    background: 'linear-gradient(135deg, #D4AF37, #AA8C2C)',
+                                                    borderRadius: '50%',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    color: '#0D0D0D',
+                                                    fontSize: '14px',
+                                                }}>
+                                                    ✓
+                                                </div>
+                                            )}
+                                            
+                                            <div style={{
+                                                width: '60px',
+                                                height: '80px',
+                                                background: template.gradient,
+                                                borderRadius: '4px',
+                                                marginBottom: '20px',
+                                                boxShadow: `0 10px 30px ${template.color}33`,
+                                            }} />
+                                            
+                                            <h3 style={{
+                                                fontSize: '18px',
+                                                color: '#E0E0E0',
+                                                marginBottom: '8px',
+                                                fontWeight: '400',
+                                            }}>
+                                                {template.name}
+                                            </h3>
+                                            <p style={{
+                                                fontSize: '13px',
+                                                color: '#707070',
+                                                margin: 0,
+                                                lineHeight: '1.5',
+                                            }}>
+                                                {template.desc}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Template Features */}
+                                <div style={{
+                                    marginTop: '50px',
+                                    padding: '40px',
+                                    background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
+                                    border: '1px solid rgba(212, 175, 55, 0.2)',
+                                    borderRadius: '8px',
+                                }}>
+                                    <h3 style={{
+                                        fontSize: '16px',
+                                        letterSpacing: '3px',
+                                        textTransform: 'uppercase',
+                                        color: '#D4AF37',
+                                        marginBottom: '30px',
+                                        fontWeight: '400',
+                                    }}>
+                                        All Templates Include
+                                    </h3>
+                                    <div style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                                        gap: '20px',
+                                    }}>
+                                        {[
+                                            { icon: '📖', title: 'Chapter Headers', desc: 'Elegant styled headers' },
+                                            { icon: '✨', title: 'Drop Caps', desc: 'Decorative first letters' },
+                                            { icon: '📝', title: 'Typography', desc: 'Premium font pairing' },
+                                            { icon: '🎨', title: 'Color Scheme', desc: 'Cohesive palette' },
+                                            { icon: '📄', title: 'Page Layout', desc: 'Professional margins' },
+                                            { icon: '🔢', title: 'Page Numbers', desc: 'Styled numbering' },
+                                            { icon: '📑', title: 'TOC', desc: 'Auto table of contents' },
+                                            { icon: '💫', title: 'Ornaments', desc: 'Decorative elements' },
+                                        ].map((feature, idx) => (
+                                            <div key={idx} style={{
+                                                textAlign: 'center',
+                                                padding: '20px 15px',
+                                                background: 'rgba(30, 30, 40, 0.4)',
+                                                borderRadius: '6px',
+                                            }}>
+                                                <div style={{ fontSize: '28px', marginBottom: '12px' }}>{feature.icon}</div>
+                                                <p style={{
+                                                    fontSize: '13px',
+                                                    color: '#C0C0C0',
+                                                    marginBottom: '5px',
+                                                }}>
+                                                    {feature.title}
+                                                </p>
+                                                <p style={{
+                                                    fontSize: '11px',
+                                                    color: '#707070',
+                                                    margin: 0,
+                                                }}>
+                                                    {feature.desc}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Format & Style Tab */}
+                        {activeTab === 'format' && (
+                            <div style={{ animation: 'fadeIn 0.5s ease' }}>
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+                                    gap: '50px',
+                                }}>
+                                    <div style={{
+                                        background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
+                                        border: '1px solid rgba(212, 175, 55, 0.2)',
+                                        borderRadius: '4px',
+                                        padding: '40px',
+                                    }}>
+                                        <h2 style={{
+                                            fontSize: '20px',
+                                            letterSpacing: '4px',
+                                            textTransform: 'uppercase',
+                                            color: '#D4AF37',
+                                            marginBottom: '30px',
+                                            fontWeight: '400',
+                                        }}>
+                                            Typography Settings
+                                        </h2>
+
+                                        {[
+                                            { label: 'Body Font', options: ['Garamond', 'Baskerville', 'Caslon', 'Minion Pro', 'Georgia'] },
+                                            { label: 'Heading Font', options: ['Playfair Display', 'Cormorant', 'Cinzel', 'Libre Baskerville'] },
+                                            { label: 'Font Size', options: ['10pt', '11pt', '12pt', '14pt'] },
+                                            { label: 'Line Spacing', options: ['1.2', '1.4', '1.5', '1.6', '2.0'] },
+                                        ].map((setting, idx) => (
+                                            <div key={idx} style={{ marginBottom: '25px' }}>
+                                                <label style={{
+                                                    display: 'block',
+                                                    fontSize: '11px',
+                                                    letterSpacing: '2px',
+                                                    textTransform: 'uppercase',
+                                                    color: '#808080',
+                                                    marginBottom: '10px',
+                                                }}>
+                                                    {setting.label}
+                                                </label>
+                                                <select style={{
+                                                    width: '100%',
+                                                    padding: '14px 18px',
+                                                    background: 'rgba(20, 20, 30, 0.8)',
+                                                    border: '1px solid rgba(100, 100, 120, 0.3)',
+                                                    borderRadius: '4px',
+                                                    color: '#E8E8E8',
+                                                    fontSize: '14px',
+                                                    fontFamily: 'inherit',
+                                                    outline: 'none',
+                                                    cursor: 'pointer',
+                                                }}>
+                                                    {setting.options.map(opt => (
+                                                        <option key={opt} value={opt}>{opt}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div style={{
+                                        background: 'linear-gradient(145deg, rgba(20, 20, 28, 0.9) 0%, rgba(15, 15, 22, 0.95) 100%)',
+                                        border: '1px solid rgba(212, 175, 55, 0.2)',
+                                        borderRadius: '4px',
+                                        padding: '40px',
+                                    }}>
+                                        <h2 style={{
+                                            fontSize: '20px',
+                                            letterSpacing: '4px',
+                                            textTransform: 'uppercase',
+                                            color: '#D4AF37',
+                                            marginBottom: '30px',
+                                            fontWeight: '400',
+                                        }}>
+                                            Page Layout
+                                        </h2>
+
+                                        {[
+                                            { label: 'Page Size', options: ['6" x 9" (Standard)', '5.5" x 8.5"', '5" x 8"', 'A5', 'Letter'] },
+                                            { label: 'Margins', options: ['Standard', 'Wide', 'Narrow', 'Custom'] },
+                                            { label: 'Alignment', options: ['Justified', 'Left Aligned', 'Ragged Right'] },
+                                        ].map((setting, idx) => (
+                                            <div key={idx} style={{ marginBottom: '25px' }}>
+                                                <label style={{
+                                                    display: 'block',
+                                                    fontSize: '11px',
+                                                    letterSpacing: '2px',
+                                                    textTransform: 'uppercase',
+                                                    color: '#808080',
+                                                    marginBottom: '10px',
+                                                }}>
+                                                    {setting.label}
+                                                </label>
+                                                <select style={{
+                                                    width: '100%',
+                                                    padding: '14px 18px',
+                                                    background: 'rgba(20, 20, 30, 0.8)',
+                                                    border: '1px solid rgba(100, 100, 120, 0.3)',
+                                                    borderRadius: '4px',
+                                                    color: '#E8E8E8',
+                                                    fontSize: '14px',
+                                                    fontFamily: 'inherit',
+                                                    outline: 'none',
+                                                    cursor: 'pointer',
+                                                }}>
+                                                    {setting.options.map(opt => (
+                                                        <option key={opt} value={opt}>{opt}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        ))}
+
+                                        <div style={{ marginTop: '30px' }}>
+                                            <h3 style={{
+                                                fontSize: '14px',
+                                                letterSpacing: '2px',
+                                                textTransform: 'uppercase',
+                                                color: '#909090',
+                                                marginBottom: '15px',
+                                                fontWeight: '400',
+                                            }}>
+                                                Additional Options
+                                            </h3>
+                                            {['Include Drop Caps', 'Add Chapter Ornaments', 'Generate Table of Contents', 'Add Page Numbers'].map((option, idx) => (
+                                                <label key={idx} style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    padding: '12px 0',
+                                                    cursor: 'pointer',
+                                                    borderBottom: '1px solid rgba(80, 80, 100, 0.15)',
+                                                }}>
+                                                    <input type="checkbox" defaultChecked style={{
+                                                        marginRight: '12px',
+                                                        accentColor: '#D4AF37',
+                                                        width: '18px',
+                                                        height: '18px',
+                                                    }} />
+                                                    <span style={{ fontSize: '14px', color: '#B0B0B0' }}>{option}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Preview Tab */}
+                        {activeTab === 'preview' && (
+                            <div style={{ animation: 'fadeIn 0.5s ease' }}>
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    marginBottom: '40px',
+                                }}>
+                                    <div style={{
+                                        display: 'flex',
+                                        gap: '10px',
+                                        background: 'rgba(20, 20, 28, 0.8)',
+                                        padding: '8px',
+                                        borderRadius: '8px',
+                                    }}>
+                                        {['Cover', 'Interior', 'Full Book'].map(view => (
+                                            <button 
+                                                key={view} 
+                                                onClick={() => setPreviewMode(view.toLowerCase().replace(' ', ''))}
+                                                style={{
+                                                    padding: '12px 24px',
+                                                    background: previewMode === view.toLowerCase().replace(' ', '') 
+                                                        ? 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)'
+                                                        : 'transparent',
+                                                    border: 'none',
+                                                    borderRadius: '4px',
+                                                    color: previewMode === view.toLowerCase().replace(' ', '') ? '#0D0D0D' : '#808080',
+                                                    fontSize: '12px',
+                                                    letterSpacing: '1px',
+                                                    textTransform: 'uppercase',
+                                                    cursor: 'pointer',
+                                                    fontFamily: 'inherit',
+                                                    fontWeight: previewMode === view.toLowerCase().replace(' ', '') ? '600' : '400',
+                                                }}
+                                            >
+                                                {view}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    gap: '30px',
+                                    overflowX: 'auto',
+                                    padding: '20px 0',
+                                }}>
+                                    {/* Book Spread Preview */}
+                                    <div style={{
+                                        display: 'flex',
+                                        boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
+                                        borderRadius: '4px',
+                                        overflow: 'hidden',
+                                    }}>
+                                        {/* Left Page */}
+                                        <div style={{
+                                            width: '320px',
+                                            minWidth: '320px',
+                                            height: '450px',
+                                            background: '#FAF8F5',
+                                            padding: '50px 40px',
+                                            borderRight: '1px solid #E5E0D8',
+                                            fontFamily: 'Georgia, serif',
+                                        }}>
+                                            <p style={{
+                                                fontSize: '10px',
+                                                color: '#888',
+                                                textAlign: 'center',
+                                                marginBottom: '30px',
+                                                letterSpacing: '1px',
+                                            }}>
+                                                12
+                                            </p>
+                                            <p style={{
+                                                fontSize: '13px',
+                                                color: '#2A2A2A',
+                                                lineHeight: '1.8',
+                                                textAlign: 'justify',
+                                            }}>
+                                                <span style={{
+                                                    float: 'left',
+                                                    fontSize: '48px',
+                                                    lineHeight: '0.8',
+                                                    paddingRight: '8px',
+                                                    color: '#D4AF37',
+                                                    fontFamily: "'Playfair Display', Georgia, serif",
+                                                }}>T</span>
+                                                he morning light filtered through the ancient windows, casting long shadows across the weathered floorboards. She stood there, breath held, knowing that the next few moments would change everything.
+                                            </p>
+                                            <p style={{
+                                                fontSize: '13px',
+                                                color: '#2A2A2A',
+                                                lineHeight: '1.8',
+                                                textAlign: 'justify',
+                                                marginTop: '20px',
+                                            }}>
+                                                Years of searching had led to this single moment. A lifetime of questions waiting to be answered.
+                                            </p>
+                                        </div>
+                                        
+                                        {/* Right Page */}
+                                        <div style={{
+                                            width: '320px',
+                                            minWidth: '320px',
+                                            height: '450px',
+                                            background: '#FAF8F5',
+                                            padding: '50px 40px',
+                                            fontFamily: 'Georgia, serif',
+                                        }}>
+                                            <p style={{
+                                                fontSize: '13px',
+                                                color: '#2A2A2A',
+                                                lineHeight: '1.8',
+                                                textAlign: 'justify',
+                                            }}>
+                                                "I never thought this day would come," she whispered to the empty room. But the room wasn't empty — it was full of memories, of possibilities.
+                                            </p>
+                                            <p style={{
+                                                fontSize: '13px',
+                                                color: '#2A2A2A',
+                                                lineHeight: '1.8',
+                                                textAlign: 'justify',
+                                                marginTop: '20px',
+                                            }}>
+                                                She folded the letter carefully and placed it close to her heart. It was time to begin the journey she had always feared.
+                                            </p>
+                                            <div style={{
+                                                textAlign: 'center',
+                                                marginTop: '40px',
+                                                color: '#D4AF37',
+                                                fontSize: '16px',
+                                            }}>
+                                                ❧
+                                            </div>
+                                            <p style={{
+                                                fontSize: '10px',
+                                                color: '#888',
+                                                textAlign: 'center',
+                                                marginTop: '80px',
+                                                letterSpacing: '1px',
+                                            }}>
+                                                13
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    gap: '15px',
+                                    marginTop: '50px',
+                                    flexWrap: 'wrap',
+                                }}>
+                                    <button 
+                                        onClick={() => exportEbook('pdf')}
+                                        style={{
+                                            padding: '16px 32px',
+                                            background: 'transparent',
+                                            border: '1px solid rgba(212, 175, 55, 0.4)',
+                                            color: '#D4AF37',
+                                            fontSize: '12px',
+                                            letterSpacing: '2px',
+                                            textTransform: 'uppercase',
+                                            cursor: 'pointer',
+                                            fontFamily: 'inherit',
+                                            transition: 'all 0.3s ease',
+                                        }}
+                                        onMouseEnter={(e) => e.target.style.background = 'rgba(212, 175, 55, 0.1)'}
+                                        onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                                    >
+                                        Download PDF
+                                    </button>
+                                    <button 
+                                        onClick={() => exportEbook('epub')}
+                                        style={{
+                                            padding: '16px 32px',
+                                            background: 'transparent',
+                                            border: '1px solid rgba(212, 175, 55, 0.4)',
+                                            color: '#D4AF37',
+                                            fontSize: '12px',
+                                            letterSpacing: '2px',
+                                            textTransform: 'uppercase',
+                                            cursor: 'pointer',
+                                            fontFamily: 'inherit',
+                                            transition: 'all 0.3s ease',
+                                        }}
+                                        onMouseEnter={(e) => e.target.style.background = 'rgba(212, 175, 55, 0.1)'}
+                                        onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                                    >
+                                        Export EPUB
+                                    </button>
+                                    <button 
+                                        onClick={() => exportEbook('kindle')}
+                                        style={{
+                                            padding: '16px 32px',
+                                            background: 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)',
+                                            border: 'none',
+                                            color: '#0D0D0D',
+                                            fontSize: '12px',
+                                            letterSpacing: '2px',
+                                            textTransform: 'uppercase',
+                                            cursor: 'pointer',
+                                            fontFamily: 'inherit',
+                                            fontWeight: '600',
+                                        }}
+                                    >
+                                        Publish to Kindle
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* Footer */}
+                    <footer style={{
+                        padding: '40px 60px',
+                        borderTop: '1px solid rgba(212, 175, 55, 0.1)',
+                        textAlign: 'center',
+                        marginTop: '60px',
+                    }}>
+                        <p style={{
+                            fontSize: '12px',
+                            letterSpacing: '2px',
+                            color: '#505050',
+                            textTransform: 'uppercase',
+                        }}>
+                            Premium Ebook Studio • Crafted for Professional Authors
+                        </p>
+                    </footer>
+                </div>
+            );
+        };
+
+        // Render the app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<PremiumEbookStudio />);
+    </script>
+</body>
+</html>
